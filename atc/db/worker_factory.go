@@ -55,7 +55,8 @@ var workersQuery = psql.Select(`
 		w.team_id,
 		w.start_time,
 		w.expires,
-		w.ephemeral
+		w.ephemeral,
+		w.p2p_streaming_group
 	`).
 	From("workers w").
 	LeftJoin("teams t ON w.team_id = t.id")
@@ -183,6 +184,7 @@ func scanWorker(worker *worker, row scannable) error {
 		&startTime,
 		&expiresAt,
 		&ephemeral,
+		&worker.p2pStreamingGroup,
 	)
 	if err != nil {
 		return err
@@ -406,6 +408,7 @@ func saveWorker(tx Tx, atcWorker atc.Worker, teamID *int, ttl time.Duration, con
 		string(workerState),
 		teamID,
 		atcWorker.Ephemeral,
+		atcWorker.P2PStreamingGroup,
 	}
 
 	conflictValues := values
@@ -437,6 +440,7 @@ func saveWorker(tx Tx, atcWorker atc.Worker, teamID *int, ttl time.Duration, con
 			"state",
 			"team_id",
 			"ephemeral",
+			"p2p_streaming_group",
 		).
 		Values(append([]any{
 			sq.Expr(expires),
@@ -461,7 +465,8 @@ func saveWorker(tx Tx, atcWorker atc.Worker, teamID *int, ttl time.Duration, con
 				version = ?,
 				state = ?,
 				team_id = ?,
-				ephemeral = ?
+				ephemeral = ?,
+				p2p_streaming_group = ?
 			WHERE `+matchTeamUpsert,
 			conflictValues...,
 		).
@@ -486,25 +491,26 @@ func saveWorker(tx Tx, atcWorker atc.Worker, teamID *int, ttl time.Duration, con
 	}
 
 	savedWorker := &worker{
-		name:             atcWorker.Name,
-		version:          workerVersion,
-		state:            workerState,
-		gardenAddr:       &atcWorker.GardenAddr,
-		baggageclaimURL:  &atcWorker.BaggageclaimURL,
-		certsPath:        atcWorker.CertsPath,
-		httpProxyURL:     atcWorker.HTTPProxyURL,
-		httpsProxyURL:    atcWorker.HTTPSProxyURL,
-		noProxy:          atcWorker.NoProxy,
-		activeContainers: atcWorker.ActiveContainers,
-		activeVolumes:    atcWorker.ActiveVolumes,
-		resourceTypes:    atcWorker.ResourceTypes,
-		platform:         atcWorker.Platform,
-		tags:             atcWorker.Tags,
-		teamName:         atcWorker.Team,
-		teamID:           workerTeamID,
-		startTime:        time.Unix(atcWorker.StartTime, 0),
-		ephemeral:        atcWorker.Ephemeral,
-		conn:             conn,
+		name:              atcWorker.Name,
+		version:           workerVersion,
+		state:             workerState,
+		gardenAddr:        &atcWorker.GardenAddr,
+		baggageclaimURL:   &atcWorker.BaggageclaimURL,
+		certsPath:         atcWorker.CertsPath,
+		httpProxyURL:      atcWorker.HTTPProxyURL,
+		httpsProxyURL:     atcWorker.HTTPSProxyURL,
+		noProxy:           atcWorker.NoProxy,
+		activeContainers:  atcWorker.ActiveContainers,
+		activeVolumes:     atcWorker.ActiveVolumes,
+		resourceTypes:     atcWorker.ResourceTypes,
+		platform:          atcWorker.Platform,
+		tags:              atcWorker.Tags,
+		teamName:          atcWorker.Team,
+		teamID:            workerTeamID,
+		startTime:         time.Unix(atcWorker.StartTime, 0),
+		ephemeral:         atcWorker.Ephemeral,
+		p2pStreamingGroup: atcWorker.P2PStreamingGroup,
+		conn:              conn,
 	}
 
 	workerBaseResourceTypeIDs := []int{}

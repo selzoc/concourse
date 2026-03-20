@@ -171,6 +171,7 @@ type CreatedVolume interface {
 	ResourceType() (*VolumeResourceType, error)
 	BaseResourceType() (*UsedWorkerBaseResourceType, error)
 	TaskIdentifier() (int, atc.PipelineRef, string, string, error)
+	P2PStreamingGroup() string
 }
 
 type createdVolume struct {
@@ -188,6 +189,7 @@ type createdVolume struct {
 	workerTaskCacheID        int
 	workerResourceCertsID    int
 	workerArtifactID         int
+	p2pStreamingGroup        string
 	conn                     DbConn
 }
 
@@ -206,6 +208,7 @@ func (volume *createdVolume) ContainerHandle() string    { return volume.contain
 func (volume *createdVolume) ParentHandle() string       { return volume.parentHandle }
 func (volume *createdVolume) WorkerArtifactID() int      { return volume.workerArtifactID }
 func (volume *createdVolume) WorkerResourceCacheID() int { return volume.workerResourceCacheID }
+func (volume *createdVolume) P2PStreamingGroup() string  { return volume.p2pStreamingGroup }
 
 func (volume *createdVolume) ResourceType() (*VolumeResourceType, error) {
 	if volume.resourceCacheID == 0 {

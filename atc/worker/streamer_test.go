@@ -207,6 +207,107 @@ var _ = Describe("Streamer", func() {
 		Expect(baggageclaimVolume(dst)).To(grt.HaveContent(content))
 	})
 
+	Test("P2P stream with same streaming group", func() {
+		content := runtimetest.VolumeContent{
+			"file1":        {Data: []byte("content 1")},
+			"folder/file2": {Data: []byte("content 2")},
+		}
+		scenario := Setup(
+			workertest.WithWorkers(
+				grt.NewWorker("src-worker").
+					WithP2PStreamingGroup("group-a").
+					WithVolumesCreatedInDBAndBaggageclaim(
+						grt.NewVolume("src").WithContent(content),
+					),
+				grt.NewWorker("dst-worker").
+					WithP2PStreamingGroup("group-a").
+					WithVolumesCreatedInDBAndBaggageclaim(
+						grt.NewVolume("dst"),
+					),
+			),
+		)
+
+		streamer := scenario.Streamer(worker.P2PConfig{
+			Enabled: true,
+		})
+
+		ctx := context.Background()
+		src := scenario.WorkerVolume("src-worker", "src")
+		dst := scenario.WorkerVolume("dst-worker", "dst")
+
+		err := streamer.Stream(ctx, src, dst)
+		Expect(err).ToNot(HaveOccurred())
+
+		Expect(baggageclaimVolume(dst)).To(grt.HaveContent(content))
+	})
+
+	Test("different P2P streaming groups falls back to ATC", func() {
+		content := runtimetest.VolumeContent{
+			"file1":        {Data: []byte("content 1")},
+			"folder/file2": {Data: []byte("content 2")},
+		}
+		scenario := Setup(
+			workertest.WithWorkers(
+				grt.NewWorker("src-worker").
+					WithP2PStreamingGroup("group-a").
+					WithVolumesCreatedInDBAndBaggageclaim(
+						grt.NewVolume("src").WithContent(content),
+					),
+				grt.NewWorker("dst-worker").
+					WithP2PStreamingGroup("group-b").
+					WithVolumesCreatedInDBAndBaggageclaim(
+						grt.NewVolume("dst"),
+					),
+			),
+		)
+
+		streamer := scenario.Streamer(worker.P2PConfig{
+			Enabled: true,
+		})
+
+		ctx := context.Background()
+		src := scenario.WorkerVolume("src-worker", "src")
+		dst := scenario.WorkerVolume("dst-worker", "dst")
+
+		err := streamer.Stream(ctx, src, dst)
+		Expect(err).ToNot(HaveOccurred())
+
+		Expect(baggageclaimVolume(dst)).To(grt.HaveContent(content))
+	})
+
+	Test("mixed P2P streaming groups falls back to ATC", func() {
+		content := runtimetest.VolumeContent{
+			"file1":        {Data: []byte("content 1")},
+			"folder/file2": {Data: []byte("content 2")},
+		}
+		scenario := Setup(
+			workertest.WithWorkers(
+				grt.NewWorker("src-worker").
+					WithP2PStreamingGroup("group-a").
+					WithVolumesCreatedInDBAndBaggageclaim(
+						grt.NewVolume("src").WithContent(content),
+					),
+				grt.NewWorker("dst-worker").
+					WithVolumesCreatedInDBAndBaggageclaim(
+						grt.NewVolume("dst"),
+					),
+			),
+		)
+
+		streamer := scenario.Streamer(worker.P2PConfig{
+			Enabled: true,
+		})
+
+		ctx := context.Background()
+		src := scenario.WorkerVolume("src-worker", "src")
+		dst := scenario.WorkerVolume("dst-worker", "dst")
+
+		err := streamer.Stream(ctx, src, dst)
+		Expect(err).ToNot(HaveOccurred())
+
+		Expect(baggageclaimVolume(dst)).To(grt.HaveContent(content))
+	})
+
 	Test("stream file from volume", func() {
 		content := runtimetest.VolumeContent{
 			"file":        {Data: []byte("content 1")},

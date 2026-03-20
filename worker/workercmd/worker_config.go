@@ -17,19 +17,22 @@ type WorkerConfig struct {
 
 	Ephemeral bool `long:"ephemeral" description:"If set, the worker will be immediately removed upon stalling."`
 
+	P2PStreamingGroup string `long:"p2p-streaming-group" description:"Assign this worker to a P2P streaming group. Workers in the same group stream volumes directly to each other. Workers in different groups (or with no group set) stream through the ATC."`
+
 	Version string `long:"version" hidden:"true" description:"Version of the worker. This is normally baked in to the binary, so this flag is hidden."`
 }
 
 func (c WorkerConfig) Worker() atc.Worker {
 	return atc.Worker{
-		Tags:          c.Tags,
-		Team:          c.TeamName,
-		Name:          c.Name,
-		StartTime:     time.Now().Unix(),
-		Version:       c.Version,
-		HTTPProxyURL:  c.HTTPProxy,
-		HTTPSProxyURL: c.HTTPSProxy,
-		NoProxy:       c.NoProxy,
-		Ephemeral:     c.Ephemeral,
+		Tags:              c.Tags,
+		Team:              c.TeamName,
+		Name:              c.Name,
+		StartTime:         time.Now().Unix(),
+		Version:           c.Version,
+		HTTPProxyURL:      c.HTTPProxy,
+		HTTPSProxyURL:     c.HTTPSProxy,
+		NoProxy:           c.NoProxy,
+		Ephemeral:         c.Ephemeral,
+		P2PStreamingGroup: c.P2PStreamingGroup,
 	}
 }
