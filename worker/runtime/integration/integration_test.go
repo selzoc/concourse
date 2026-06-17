@@ -25,6 +25,7 @@ import (
 	"github.com/concourse/concourse/worker/workercmd"
 	containerd "github.com/containerd/containerd/v2/client"
 	"github.com/jackpal/gateway"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -1100,13 +1101,13 @@ func (s *IntegrationSuite) TestRequestTimeoutZero() {
 func (s *IntegrationSuite) TestPropertiesGetChunked() {
 	handle := uuid()
 
-	longString := ""
+	var longString strings.Builder
 	for i := range 10000 {
-		longString += strconv.Itoa(i)
+		longString.WriteString(strconv.Itoa(i))
 	}
 
 	properties := garden.Properties{
-		"long1": longString,
+		"long1": longString.String(),
 		// Concourse may try to set an empty value property on a container.
 		// This just gets ignored (i.e. subsequent calls to
 		// container.Properties() won't include it)
@@ -1122,23 +1123,23 @@ func (s *IntegrationSuite) TestPropertiesGetChunked() {
 	s.NoError(err)
 
 	containers, err := s.gardenBackend.Containers(garden.Properties{
-		"long1": longString,
+		"long1": longString.String(),
 	})
 	s.NoError(err)
 
 	s.Len(containers, 1)
 
-	err = container.SetProperty("long2", longString)
+	err = container.SetProperty("long2", longString.String())
 	s.NoError(err)
 
 	containers, err = s.gardenBackend.Containers(garden.Properties{
-		"long1": longString,
-		"long2": longString,
+		"long1": longString.String(),
+		"long2": longString.String(),
 	})
 	s.NoError(err)
 	s.Len(containers, 1)
 
-	err = container.SetProperty(longString, "foo")
+	err = container.SetProperty(longString.String(), "foo")
 	s.Error(err)
 	s.Regexp("property.*too long", err.Error())
 
@@ -1146,8 +1147,8 @@ func (s *IntegrationSuite) TestPropertiesGetChunked() {
 	s.NoError(err)
 
 	s.Equal(garden.Properties{
-		"long1": longString,
-		"long2": longString,
+		"long1": longString.String(),
+		"long2": longString.String(),
 	}, properties)
 }
 
@@ -1222,4 +1223,81 @@ func (s *IntegrationSuite) TestNetworkMountsAreRemoved() {
 	networkFiles, err = os.ReadDir(filepath.Join(networkMountsDir, "networkmounts"))
 	s.NoError(err)
 	s.Len(networkFiles, 0)
+}
+
+// TestNewContainerEnforcesTimeoutOnTask is a regression test verifying that
+// containers returned by client.NewContainer enforce the requestTimeout on
+// follow-on operations (Task, NewTask, Spec).
+
+// How this test works:
+//  1. Create a libcontainerd client with a 1s requestTimeout
+//  2. Create a container directly via client.NewContainer with a minimal
+//     OCI runtime spec (no init binary or running task needed)
+//  3. Freeze containerd with SIGSTOP (making all gRPC calls hang)
+//  4. Call Task() on the container from NewContainer with context.Background()
+//     (no deadline from the caller — the wrapper must add it)
+//  5. Expect a "deadline exceeded" error within ~1s
+//  6. Also verify GetContainer returns a container that behaves identically
+//  7. Unfreeze containerd and verify recovery
+//
+// Step 4 will blocks indefinitely and the test times out without the fix
+func (s *IntegrationSuite) TestNewContainerEnforcesTimeoutOnTask() {
+	requestTimeout := 1 * time.Second
+
+	client := libcontainerd.New(
+		s.containerdSocket(),
+		"test-timeout-enforcement",
+		requestTimeout,
+	)
+	err := client.Init()
+	s.NoError(err)
+	defer client.Stop()
+
+	handle := uuid()
+	minimalSpec := &specs.Spec{
+		Version: specs.Version,
+		Process: &specs.Process{
+			Args: []string{"/bin/sh"},
+		},
+		Root: &specs.Root{
+			Path: s.rootfs,
+		},
+	}
+
+	contViaNew, err := client.NewContainer(
+		context.Background(), handle, map[string]string{}, minimalSpec,
+	)
+	s.NoError(err, "NewContainer should succeed")
+	defer func() {
+		_ = s.containerdProcess.Process.Signal(syscall.SIGCONT)
+		contViaNew.Delete(context.Background())
+	}()
+
+	_, err = contViaNew.Task(context.Background(), nil)
+	s.Error(err, "Task should return 'not found' error (no task started)")
+
+	contViaGet, err := client.GetContainer(context.Background(), handle)
+	s.NoError(err, "GetContainer should succeed while containerd is responsive")
+
+	_, err = contViaGet.Task(context.Background(), nil)
+	s.Error(err, "Task via GetContainer should also return 'not found'")
+
+	s.NoError(s.containerdProcess.Process.Signal(syscall.SIGSTOP))
+
+	start := time.Now()
+	_, err = contViaNew.Task(context.Background(), nil)
+	elapsed := time.Since(start)
+
+	s.Error(err, "Task must fail when containerd is frozen")
+	s.Contains(err.Error(), "deadline exceeded",
+		"Expected 'context deadline exceeded', got: %v", err)
+	s.Less(elapsed.Seconds(), 3.0,
+		"Task should timeout in ~1s (requestTimeout), but took %v", elapsed)
+
+	s.NoError(s.containerdProcess.Process.Signal(syscall.SIGCONT))
+
+	_, err = contViaNew.Task(context.Background(), nil)
+	s.Error(err)
+	s.NotContains(err.Error(), "deadline exceeded",
+		"After unfreeze, Task should not timeout")
 }

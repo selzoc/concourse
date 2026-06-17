@@ -35,10 +35,10 @@ var _ = Describe("serial groups", func() {
 			<-pendingS.Exited
 		})
 
-		It("runs even when another job in the serial group has a pending build", func() {
+		It("runs even when another job in the serial group has a pending build", func(ctx SpecContext) {
 			fly("trigger-job", "-j", inPipeline("some-passing-job"), "-w")
 			Consistently(pendingS, time.Second).ShouldNot(gexec.Exit())
-		})
+		}, DefaultSpecTimeout)
 	})
 
 	Context("when inputs eventually become available for one resource", func() {
@@ -59,7 +59,7 @@ var _ = Describe("serial groups", func() {
 			)
 		})
 
-		It("is able to run second job with latest inputs", func() {
+		It("is able to run second job with latest inputs", func(ctx SpecContext) {
 			By("starting a pending build")
 			pendingS := spawnFly("trigger-job", "-j", inPipeline("some-pending-job"), "-w")
 
@@ -91,6 +91,6 @@ var _ = Describe("serial groups", func() {
 			Expect(pendingS.ExitCode()).To(Equal(0))
 			Expect(pendingS).To(gbytes.Say(guid2))
 			Expect(pendingS).To(gbytes.Say(guid3))
-		})
+		}, DefaultSpecTimeout)
 	})
 })

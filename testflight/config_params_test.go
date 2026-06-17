@@ -12,14 +12,14 @@ var _ = Describe("Configuring a resource in a pipeline config", func() {
 	})
 
 	Context("when specifying file in task config", func() {
-		It("executes the file with params specified in file", func() {
+		It("executes the file with params specified in file", func(ctx SpecContext) {
 			watch := fly("trigger-job", "-j", inPipeline("file-test"), "-w")
 			Expect(watch).To(gbytes.Say("file_source"))
-		})
+		}, DefaultSpecTimeout)
 
-		It("executes the file with job params", func() {
+		It("executes the file with job params", func(ctx SpecContext) {
 			watch := fly("trigger-job", "-j", inPipeline("file-params-test"), "-w")
 			Expect(watch).To(gbytes.Say("job_params_source"))
-		})
+		}, DefaultSpecTimeout)
 	})
 })

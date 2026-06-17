@@ -9,7 +9,7 @@ var _ = Describe("load_var Step", func() {
 		setAndUnpausePipeline("fixtures/load-var-step.yml")
 	})
 
-	It("uses the load_var step build execution", func() {
+	It("uses the load_var step build execution", func(ctx SpecContext) {
 		fly("trigger-job", "-j", inPipeline("use-var"), "-w")
-	})
+	}, DefaultSpecTimeout)
 })

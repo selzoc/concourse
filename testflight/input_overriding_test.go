@@ -74,7 +74,7 @@ run:
 		Expect(err).NotTo(HaveOccurred())
 	})
 
-	It("can have its inputs used as the basis for a one-off build", func() {
+	It("can have its inputs used as the basis for a one-off build", func(ctx SpecContext) {
 		By("waiting for an initial build so the job has inputs")
 		watch := fly("trigger-job", "-j", inPipeline("some-job"), "-w")
 		Expect(watch).To(gbytes.Say("initializing"))
@@ -100,5 +100,5 @@ run:
 		Expect(execute).To(gbytes.Say("a has " + firstVersionA))
 		Expect(execute).To(gbytes.Say("b has some-overridden-version"))
 		Expect(execute).To(gbytes.Say("succeeded"))
-	})
+	}, DefaultSpecTimeout)
 })

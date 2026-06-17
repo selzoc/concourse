@@ -1838,8 +1838,8 @@ var _ = Describe("Pipelines API", func() {
 
 					page := fakePipeline.BuildsArgsForCall(0)
 					Expect(page).To(Equal(db.Page{
-						From:  db.NewIntPtr(2),
-						To:    db.NewIntPtr(3),
+						From:  new(2),
+						To:    new(3),
 						Limit: 8,
 					}))
 				})
@@ -1919,8 +1919,8 @@ var _ = Describe("Pipelines API", func() {
 				Context("when next/previous pages are available", func() {
 					BeforeEach(func() {
 						fakePipeline.BuildsReturns(returnedBuilds, db.Pagination{
-							Newer: &db.Page{From: db.NewIntPtr(4), Limit: 2},
-							Older: &db.Page{To: db.NewIntPtr(2), Limit: 2},
+							Newer: &db.Page{From: new(4), Limit: 2},
+							Older: &db.Page{To: new(2), Limit: 2},
 						}, nil)
 					})
 

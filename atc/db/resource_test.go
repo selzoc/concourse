@@ -164,7 +164,7 @@ var _ = Describe("Resource", func() {
 					)
 					Expect(err).NotTo(HaveOccurred())
 
-					resourceConfigScope, err := resourceConfig.FindOrCreateScope(intptr(resource.ID()))
+					resourceConfigScope, err := resourceConfig.FindOrCreateScope(new(resource.ID()))
 					Expect(err).NotTo(HaveOccurred())
 
 					err = resource.SetResourceConfigScope(resourceConfigScope)
@@ -173,20 +173,21 @@ var _ = Describe("Resource", func() {
 					publicPlan = atc.Plan{
 						ID: atc.PlanID("1234"),
 						Check: &atc.CheckPlan{
-							Name: "some-resource",
-							Type: "some-resource-type",
+							Name:     "some-resource",
+							Type:     "some-resource-type",
+							Interval: atc.CheckEvery{Interval: 3 * time.Minute},
 						},
 					}
 					bytes, err := json.Marshal(publicPlan)
 					jr := json.RawMessage(bytes)
 					resourceConfigScope.UpdateLastCheckStartTime(99, &jr)
-					resourceConfigScope.UpdateLastCheckEndTime(false)
+					resourceConfigScope.UpdateLastCheckEndTime(false, publicPlan.Check.Interval.Interval)
 				})
 
 				It("return check build info", func() {
 					Expect(scenario.Resource("some-resource").LastCheckStartTime()).Should(BeTemporally("~", time.Now(), time.Second))
 					Expect(scenario.Resource("some-resource").LastCheckEndTime()).Should(BeTemporally("~", time.Now(), time.Second))
-
+					Expect(scenario.Resource("some-resource").NextCheckTime()).Should(BeTemporally("~", time.Now().Add(3*time.Minute), time.Second))
 				})
 
 				It("return build summary", func() {
@@ -267,7 +268,7 @@ var _ = Describe("Resource", func() {
 						},
 					},
 				}),
-				builder.WithResourceVersions("some-other-resource", atc.Version{"disabled": "version"}),
+				builder.WithResourceVersions("some-other-resource", time.Minute, atc.Version{"disabled": "version"}),
 			)
 		})
 
@@ -436,7 +437,7 @@ var _ = Describe("Resource", func() {
 			resourceConfig, err := resourceConfigFactory.FindOrCreateResourceConfig(resource.Type(), resource.Source(), nil)
 			Expect(err).ToNot(HaveOccurred())
 
-			scope, err = resourceConfig.FindOrCreateScope(intptr(resource.ID()))
+			scope, err = resourceConfig.FindOrCreateScope(new(resource.ID()))
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -705,6 +706,7 @@ var _ = Describe("Resource", func() {
 					}),
 					builder.WithResourceVersions(
 						"some-resource",
+						time.Minute,
 						atc.Version{"ref": "v0"},
 						atc.Version{"ref": "v1"},
 						atc.Version{"ref": "v2"},
@@ -742,6 +744,7 @@ var _ = Describe("Resource", func() {
 
 					scenario.Run(builder.WithResourceVersions(
 						"some-resource",
+						time.Minute,
 						atc.Version{"ref": "v0"},
 						atc.Version{"ref": "v1"},
 						atc.Version{"ref": "v2"},
@@ -768,11 +771,14 @@ var _ = Describe("Resource", func() {
 			})
 		})
 
-		Context("with global resources, when there are multiple resources sharing the same version history", func() {
+		Context("with global resources, when there are multiple resources sharing the same version history", Serial, func() {
 			var someOtherResource db.Resource
 
 			BeforeEach(func() {
 				atc.EnableGlobalResources = true
+				DeferCleanup(func() {
+					atc.EnableGlobalResources = false
+				})
 
 				scenario = dbtest.Setup(
 					builder.WithPipeline(atc.Config{
@@ -791,12 +797,14 @@ var _ = Describe("Resource", func() {
 					}),
 					builder.WithResourceVersions(
 						"some-resource",
+						time.Minute,
 						atc.Version{"ref": "v0"},
 						atc.Version{"ref": "v1"},
 						atc.Version{"ref": "v2"},
 					),
 					builder.WithResourceVersions(
 						"some-other-resource",
+						time.Minute,
 						atc.Version{"ref": "v0"},
 						atc.Version{"ref": "v1"},
 						atc.Version{"ref": "v2"},
@@ -845,6 +853,7 @@ var _ = Describe("Resource", func() {
 					}),
 					builder.WithResourceVersions(
 						"some-resource",
+						time.Minute,
 						atc.Version{"ref": "v0", "commit": "v0"},
 						atc.Version{"ref": "v1", "commit": "v1"},
 						atc.Version{"ref": "v2", "commit": "v2"},
@@ -947,6 +956,7 @@ var _ = Describe("Resource", func() {
 					}),
 					builder.WithResourceVersions(
 						"some-resource",
+						time.Minute,
 						atc.Version{"ref": "v0"},
 						atc.Version{"ref": "v1"},
 						atc.Version{"ref": "v2"},
@@ -991,59 +1001,59 @@ var _ = Describe("Resource", func() {
 					Expect(historyPage[0].Version).To(Equal(resourceVersions[9].Version))
 					Expect(historyPage[1].Version).To(Equal(resourceVersions[8].Version))
 					Expect(pagination.Newer).To(BeNil())
-					Expect(pagination.Older).To(Equal(&db.Page{To: db.NewIntPtr(resourceVersions[7].ID), Limit: 2}))
+					Expect(pagination.Older).To(Equal(&db.Page{To: new(resourceVersions[7].ID), Limit: 2}))
 				})
 			})
 
 			Context("with a to that places it in the middle of the versions", func() {
 				It("returns the versions, with previous/next pages", func() {
-					historyPage, pagination, found, err := scenario.Resource("some-resource").Versions(db.Page{To: db.NewIntPtr(resourceVersions[6].ID), Limit: 2}, nil)
+					historyPage, pagination, found, err := scenario.Resource("some-resource").Versions(db.Page{To: new(resourceVersions[6].ID), Limit: 2}, nil)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(found).To(BeTrue())
 					Expect(len(historyPage)).To(Equal(2))
 					Expect(historyPage[0].Version).To(Equal(resourceVersions[6].Version))
 					Expect(historyPage[1].Version).To(Equal(resourceVersions[5].Version))
-					Expect(pagination.Newer).To(Equal(&db.Page{From: db.NewIntPtr(resourceVersions[7].ID), Limit: 2}))
-					Expect(pagination.Older).To(Equal(&db.Page{To: db.NewIntPtr(resourceVersions[4].ID), Limit: 2}))
+					Expect(pagination.Newer).To(Equal(&db.Page{From: new(resourceVersions[7].ID), Limit: 2}))
+					Expect(pagination.Older).To(Equal(&db.Page{To: new(resourceVersions[4].ID), Limit: 2}))
 				})
 			})
 
 			Context("with a to that places it to the oldest version", func() {
 				It("returns the versions, with no next page", func() {
-					historyPage, pagination, found, err := scenario.Resource("some-resource").Versions(db.Page{To: db.NewIntPtr(resourceVersions[1].ID), Limit: 2}, nil)
+					historyPage, pagination, found, err := scenario.Resource("some-resource").Versions(db.Page{To: new(resourceVersions[1].ID), Limit: 2}, nil)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(found).To(BeTrue())
 					Expect(len(historyPage)).To(Equal(2))
 					Expect(historyPage[0].Version).To(Equal(resourceVersions[1].Version))
 					Expect(historyPage[1].Version).To(Equal(resourceVersions[0].Version))
-					Expect(pagination.Newer).To(Equal(&db.Page{From: db.NewIntPtr(resourceVersions[2].ID), Limit: 2}))
+					Expect(pagination.Newer).To(Equal(&db.Page{From: new(resourceVersions[2].ID), Limit: 2}))
 					Expect(pagination.Older).To(BeNil())
 				})
 			})
 
 			Context("with a from that places it in the middle of the versions", func() {
 				It("returns the versions, with previous/next pages", func() {
-					historyPage, pagination, found, err := scenario.Resource("some-resource").Versions(db.Page{From: db.NewIntPtr(resourceVersions[6].ID), Limit: 2}, nil)
+					historyPage, pagination, found, err := scenario.Resource("some-resource").Versions(db.Page{From: new(resourceVersions[6].ID), Limit: 2}, nil)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(found).To(BeTrue())
 					Expect(len(historyPage)).To(Equal(2))
 					Expect(historyPage[0].Version).To(Equal(resourceVersions[7].Version))
 					Expect(historyPage[1].Version).To(Equal(resourceVersions[6].Version))
-					Expect(pagination.Newer).To(Equal(&db.Page{From: db.NewIntPtr(resourceVersions[8].ID), Limit: 2}))
-					Expect(pagination.Older).To(Equal(&db.Page{To: db.NewIntPtr(resourceVersions[5].ID), Limit: 2}))
+					Expect(pagination.Newer).To(Equal(&db.Page{From: new(resourceVersions[8].ID), Limit: 2}))
+					Expect(pagination.Older).To(Equal(&db.Page{To: new(resourceVersions[5].ID), Limit: 2}))
 				})
 			})
 
 			Context("with a from that places it at the beginning of the most recent versions", func() {
 				It("returns the versions, with no previous page", func() {
-					historyPage, pagination, found, err := scenario.Resource("some-resource").Versions(db.Page{From: db.NewIntPtr(resourceVersions[8].ID), Limit: 2}, nil)
+					historyPage, pagination, found, err := scenario.Resource("some-resource").Versions(db.Page{From: new(resourceVersions[8].ID), Limit: 2}, nil)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(found).To(BeTrue())
 					Expect(len(historyPage)).To(Equal(2))
 					Expect(historyPage[0].Version).To(Equal(resourceVersions[9].Version))
 					Expect(historyPage[1].Version).To(Equal(resourceVersions[8].Version))
 					Expect(pagination.Newer).To(BeNil())
-					Expect(pagination.Older).To(Equal(&db.Page{To: db.NewIntPtr(resourceVersions[7].ID), Limit: 2}))
+					Expect(pagination.Older).To(Equal(&db.Page{To: new(resourceVersions[7].ID), Limit: 2}))
 				})
 			})
 
@@ -1064,7 +1074,7 @@ var _ = Describe("Resource", func() {
 				})
 
 				It("maintains existing metadata after same version is saved with no metadata", func() {
-					scenario.Run(builder.WithResourceVersions("some-resource", atc.Version(resourceVersions[9].Version)))
+					scenario.Run(builder.WithResourceVersions("some-resource", time.Minute, atc.Version(resourceVersions[9].Version)))
 
 					historyPage, _, found, err := scenario.Resource("some-resource").Versions(db.Page{Limit: 1}, atc.Version{})
 					Expect(err).ToNot(HaveOccurred())
@@ -1138,12 +1148,14 @@ var _ = Describe("Resource", func() {
 					}),
 					builder.WithResourceVersions(
 						"some-resource",
+						time.Minute,
 						atc.Version{"ref": "v1"}, // id: 1, check_order: 1
 						atc.Version{"ref": "v3"}, // id: 2, check_order: 2
 						atc.Version{"ref": "v4"}, // id: 3, check_order: 3
 					),
 					builder.WithResourceVersions(
 						"some-resource",
+						time.Minute,
 						atc.Version{"ref": "v2"}, // id: 4, check_order: 4
 						atc.Version{"ref": "v3"}, // id: 2, check_order: 5
 						atc.Version{"ref": "v4"}, // id: 3, check_order: 6
@@ -1189,27 +1201,27 @@ var _ = Describe("Resource", func() {
 
 			Context("with from", func() {
 				It("returns the versions, with previous/next pages including from", func() {
-					historyPage, pagination, found, err := scenario.Resource("some-resource").Versions(db.Page{From: db.NewIntPtr(resourceVersions[1].ID), Limit: 2}, nil)
+					historyPage, pagination, found, err := scenario.Resource("some-resource").Versions(db.Page{From: new(resourceVersions[1].ID), Limit: 2}, nil)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(found).To(BeTrue())
 					Expect(historyPage).To(HaveLen(2))
 					Expect(historyPage[0].Version).To(Equal(resourceVersions[2].Version))
 					Expect(historyPage[1].Version).To(Equal(resourceVersions[1].Version))
-					Expect(pagination.Newer).To(Equal(&db.Page{From: db.NewIntPtr(resourceVersions[3].ID), Limit: 2}))
-					Expect(pagination.Older).To(Equal(&db.Page{To: db.NewIntPtr(resourceVersions[0].ID), Limit: 2}))
+					Expect(pagination.Newer).To(Equal(&db.Page{From: new(resourceVersions[3].ID), Limit: 2}))
+					Expect(pagination.Older).To(Equal(&db.Page{To: new(resourceVersions[0].ID), Limit: 2}))
 				})
 			})
 
 			Context("with to", func() {
 				It("returns the builds, with previous/next pages including to", func() {
-					historyPage, pagination, found, err := scenario.Resource("some-resource").Versions(db.Page{To: db.NewIntPtr(resourceVersions[2].ID), Limit: 2}, nil)
+					historyPage, pagination, found, err := scenario.Resource("some-resource").Versions(db.Page{To: new(resourceVersions[2].ID), Limit: 2}, nil)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(found).To(BeTrue())
 					Expect(historyPage).To(HaveLen(2))
 					Expect(historyPage[0].Version).To(Equal(resourceVersions[2].Version))
 					Expect(historyPage[1].Version).To(Equal(resourceVersions[1].Version))
-					Expect(pagination.Newer).To(Equal(&db.Page{From: db.NewIntPtr(resourceVersions[3].ID), Limit: 2}))
-					Expect(pagination.Older).To(Equal(&db.Page{To: db.NewIntPtr(resourceVersions[0].ID), Limit: 2}))
+					Expect(pagination.Newer).To(Equal(&db.Page{From: new(resourceVersions[3].ID), Limit: 2}))
+					Expect(pagination.Older).To(Equal(&db.Page{To: new(resourceVersions[0].ID), Limit: 2}))
 				})
 			})
 		})
@@ -1248,6 +1260,7 @@ var _ = Describe("Resource", func() {
 				}),
 				builder.WithResourceVersions(
 					"some-resource",
+					time.Minute,
 					atc.Version{"version": "v1"},
 					atc.Version{"version": "v2"},
 					atc.Version{"version": "v3"},
@@ -1390,6 +1403,7 @@ var _ = Describe("Resource", func() {
 					}),
 					builder.WithResourceVersions(
 						"some-resource",
+						time.Minute,
 						atc.Version{"version": "v1"},
 						atc.Version{"version": "v2"},
 						atc.Version{"version": "v3"},
@@ -1985,6 +1999,7 @@ var _ = Describe("Resource", func() {
 					}),
 					builder.WithResourceVersions(
 						"some-resource",
+						time.Minute,
 						atc.Version{"version": "v1"},
 						atc.Version{"version": "v2"},
 						atc.Version{"version": "v3"},
@@ -2109,7 +2124,7 @@ var _ = Describe("Resource", func() {
 			)
 			Expect(err).NotTo(HaveOccurred())
 
-			resourceConfigScope, err = resourceConfig.FindOrCreateScope(intptr(resource.ID()))
+			resourceConfigScope, err = resourceConfig.FindOrCreateScope(new(resource.ID()))
 			Expect(err).NotTo(HaveOccurred())
 
 			err = resource.SetResourceConfigScope(resourceConfigScope)
@@ -2165,7 +2180,7 @@ var _ = Describe("Resource", func() {
 					Expect(err).NotTo(HaveOccurred())
 
 					resourceConfigScope.UpdateLastCheckStartTime(build.ID(), build.PublicPlan())
-					resourceConfigScope.UpdateLastCheckEndTime(false)
+					resourceConfigScope.UpdateLastCheckEndTime(false, time.Minute)
 				})
 
 				It("has build summary", func() {
@@ -2181,7 +2196,7 @@ var _ = Describe("Resource", func() {
 				Context("when other resource ran a check build for the scope", func() {
 					BeforeEach(func() {
 						resourceConfigScope.UpdateLastCheckStartTime(999999, build.PublicPlan())
-						resourceConfigScope.UpdateLastCheckEndTime(true)
+						resourceConfigScope.UpdateLastCheckEndTime(true, time.Minute)
 					})
 
 					It("has build summary", func() {
@@ -2219,7 +2234,7 @@ var _ = Describe("Resource", func() {
 		})
 	})
 
-	Describe("SharedResourcesAndTypes", func() {
+	Describe("SharedResourcesAndTypes", Serial, func() {
 		var (
 			scenario, scenario2 *dbtest.Scenario
 			resource            db.Resource
@@ -2229,6 +2244,9 @@ var _ = Describe("Resource", func() {
 
 		BeforeEach(func() {
 			atc.EnableGlobalResources = true
+			DeferCleanup(func() {
+				atc.EnableGlobalResources = false
+			})
 
 			scenario = dbtest.Setup(
 				builder.WithPipeline(atc.Config{
@@ -2265,6 +2283,7 @@ var _ = Describe("Resource", func() {
 			BeforeEach(func() {
 				scenario.Run(builder.WithResourceVersions(
 					"some-resource",
+					time.Minute,
 					atc.Version{"ref": "v0"},
 					atc.Version{"ref": "v1"},
 					atc.Version{"ref": "v2"},
@@ -2294,8 +2313,8 @@ var _ = Describe("Resource", func() {
 							},
 						},
 					}),
-						builder.WithResourceVersions("some-resource", atc.Version{"ref": "v0"}),
-						builder.WithResourceVersions("other-resource", atc.Version{"ref": "v0"}),
+						builder.WithResourceVersions("some-resource", time.Minute, atc.Version{"ref": "v0"}),
+						builder.WithResourceVersions("other-resource", time.Minute, atc.Version{"ref": "v0"}),
 						builder.WithResourceTypeVersions("some-resource-type", atc.Version{"ref": "v0"}),
 					)
 				})
@@ -2346,7 +2365,7 @@ var _ = Describe("Resource", func() {
 		})
 	})
 
-	Describe("SharedResourcesAndTypes", func() {
+	Describe("SharedResourcesAndTypes", Serial, func() {
 		var (
 			scenario, scenario2 *dbtest.Scenario
 			resourceType        db.ResourceType
@@ -2356,6 +2375,9 @@ var _ = Describe("Resource", func() {
 
 		BeforeEach(func() {
 			atc.EnableGlobalResources = true
+			DeferCleanup(func() {
+				atc.EnableGlobalResources = false
+			})
 
 			scenario = dbtest.Setup(
 				builder.WithPipeline(atc.Config{
@@ -2421,7 +2443,7 @@ var _ = Describe("Resource", func() {
 							},
 						},
 					}),
-						builder.WithResourceVersions("some-resource", atc.Version{"ref": "v0"}),
+						builder.WithResourceVersions("some-resource", time.Minute, atc.Version{"ref": "v0"}),
 						builder.WithResourceTypeVersions("other-resource-type", atc.Version{"ref": "v0"}),
 						builder.WithResourceTypeVersions("some-resource-type", atc.Version{"ref": "v0"}),
 					)

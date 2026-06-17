@@ -11,7 +11,7 @@ var _ = Describe("Renaming a pipeline", func() {
 		setAndUnpausePipeline("fixtures/simple.yml")
 	})
 
-	It("runs scheduled after pipeline is renamed", func() {
+	It("runs scheduled after pipeline is renamed", func(ctx SpecContext) {
 		watch := fly("trigger-job", "-j", inPipeline("simple"), "-w")
 		Expect(watch).To(gbytes.Say("Hello, world!"))
 
@@ -22,5 +22,5 @@ var _ = Describe("Renaming a pipeline", func() {
 
 		watch = fly("trigger-job", "-j", inPipeline("simple"), "-w")
 		Expect(watch).To(gbytes.Say("Hello, world!"))
-	})
+	}, DefaultSpecTimeout)
 })

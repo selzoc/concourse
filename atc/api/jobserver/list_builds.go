@@ -42,11 +42,11 @@ func (s *Server) ListJobBuilds(pipeline db.Pipeline) http.Handler {
 		page := db.Page{Limit: limit}
 		if urlFrom != "" {
 			from, _ = strconv.Atoi(urlFrom)
-			page.From = db.NewIntPtr(from)
+			page.From = new(from)
 		}
 		if urlTo != "" {
 			to, _ = strconv.Atoi(urlTo)
-			page.To = db.NewIntPtr(to)
+			page.To = new(to)
 		}
 
 		job, found, err := pipeline.Job(jobName)

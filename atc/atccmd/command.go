@@ -2,8 +2,8 @@ package atccmd
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
+	"crypto/hkdf"
+	"crypto/sha512"
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
@@ -49,9 +49,11 @@ import (
 	"github.com/concourse/concourse/atc/scheduler"
 	"github.com/concourse/concourse/atc/scheduler/algorithm"
 	"github.com/concourse/concourse/atc/syslog"
+	atctls "github.com/concourse/concourse/atc/tls"
 	"github.com/concourse/concourse/atc/util"
 	"github.com/concourse/concourse/atc/worker"
 	"github.com/concourse/concourse/atc/wrappa"
+	"github.com/concourse/concourse/flag"
 	"github.com/concourse/concourse/skymarshal/dexserver"
 	"github.com/concourse/concourse/skymarshal/legacyserver"
 	"github.com/concourse/concourse/skymarshal/skycmd"
@@ -60,7 +62,6 @@ import (
 	"github.com/concourse/concourse/skymarshal/token"
 	"github.com/concourse/concourse/tracing"
 	"github.com/concourse/concourse/web"
-	"github.com/concourse/flag/v2"
 	"github.com/cppforlife/go-semi-semantic/version"
 	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/hashicorp/go-multierror"
@@ -146,8 +147,12 @@ type RunCommand struct {
 		GracePeriod    time.Duration `long:"grace-period" default:"24h" description:"How long a key should still be published for the idtoken secrets provider after a new key has been generated"`
 	} `group:"Pipeline Identity Tokens" namespace:"signing-key"`
 
-	EncryptionKey    flag.Cipher `long:"encryption-key"     description:"A 16 or 32 length key used to encrypt sensitive information before storing it in the database."`
-	OldEncryptionKey flag.Cipher `long:"old-encryption-key" description:"Encryption key previously used for encrypting sensitive information. If provided without a new key, data is encrypted. If provided with a new key, data is re-encrypted."`
+	EncryptionKey          flag.Cipher       `long:"encryption-key"            description:"A 16 or 32 length key used to encrypt sensitive information before storing it in the database."`
+	EncryptionKeyBase64    flag.CipherBase64 `long:"encryption-key-base64"     description:"A base64-encoded 16 or 32 byte key used to encrypt sensitive information before storing it in the database."`
+	EncryptionKeyHex       flag.CipherHex    `long:"encryption-key-hex"        description:"A hex-encoded 16 or 32 byte key used to encrypt sensitive information before storing it in the database."`
+	OldEncryptionKey       flag.Cipher       `long:"old-encryption-key"        description:"Encryption key previously used for encrypting sensitive information. If provided without a new key, data is decrypted. If provided with a new key, data is re-encrypted."`
+	OldEncryptionKeyBase64 flag.CipherBase64 `long:"old-encryption-key-base64" description:"Base64-encoded encryption key previously used. If provided without a new key, data is decrypted. If provided with a new key, data is re-encrypted."`
+	OldEncryptionKeyHex    flag.CipherHex    `long:"old-encryption-key-hex"    description:"Hex-encoded encryption key previously used. If provided without a new key, data is decrypted. If provided with a new key, data is re-encrypted."`
 
 	DebugBindIP   flag.IP `long:"debug-bind-ip"   default:"127.0.0.1" description:"IP address on which to listen for the pprof debugger endpoints."`
 	DebugBindPort uint16  `long:"debug-bind-port" default:"8079"      description:"Port on which to listen for the pprof debugger endpoints."`
@@ -279,6 +284,8 @@ type RunCommand struct {
 	DefaultPutTimeout  time.Duration `long:"default-put-timeout" description:"Default timeout of put steps"`
 	DefaultTaskTimeout time.Duration `long:"default-task-timeout" description:"Default timeout of task steps"`
 
+	DefaultTaskCacheTTL time.Duration `long:"default-task-cache-ttl" default:"0s" description:"Default TTL for task caches. Caches unused for this duration will be garbage-collected. 0s means no expiry."`
+
 	NumGoroutineThreshold int `long:"num-goroutine-threshold" description:"When number of goroutines reaches to this threshold, then slow down current ATC. This helps distribute workloads across ATCs evenly."`
 
 	DBNotificationBusQueueSize int `long:"db-notification-bus-queue-size" default:"10000" description:"DB notification bus queue size, default is 10000. If UI often misses loading running build logs, then consider to increase the queue size."`
@@ -290,8 +297,12 @@ type Migration struct {
 	lockFactory lock.LockFactory
 
 	Postgres               flag.PostgresConfig `group:"PostgreSQL Configuration" namespace:"postgres"`
-	EncryptionKey          flag.Cipher         `long:"encryption-key"     description:"A 16 or 32 length key used to encrypt sensitive information before storing it in the database."`
-	OldEncryptionKey       flag.Cipher         `long:"old-encryption-key" description:"Encryption key previously used for encrypting sensitive information. If provided without a new key, data is decrypted. If provided with a new key, data is re-encrypted."`
+	EncryptionKey          flag.Cipher         `long:"encryption-key"            description:"A 16 or 32 length key used to encrypt sensitive information before storing it in the database."`
+	EncryptionKeyBase64    flag.CipherBase64   `long:"encryption-key-base64"     description:"A base64-encoded 16 or 32 byte key used to encrypt sensitive information before storing it in the database."`
+	EncryptionKeyHex       flag.CipherHex      `long:"encryption-key-hex"        description:"A hex-encoded 16 or 32 byte key used to encrypt sensitive information before storing it in the database."`
+	OldEncryptionKey       flag.Cipher         `long:"old-encryption-key"        description:"Encryption key previously used for encrypting sensitive information. If provided without a new key, data is decrypted. If provided with a new key, data is re-encrypted."`
+	OldEncryptionKeyBase64 flag.CipherBase64   `long:"old-encryption-key-base64" description:"Base64-encoded encryption key previously used. If provided without a new key, data is decrypted. If provided with a new key, data is re-encrypted."`
+	OldEncryptionKeyHex    flag.CipherHex      `long:"old-encryption-key-hex"    description:"Hex-encoded encryption key previously used. If provided without a new key, data is decrypted. If provided with a new key, data is re-encrypted."`
 	CurrentDBVersion       bool                `long:"current-db-version" description:"Print the current database version and exit"`
 	SupportedDBVersion     bool                `long:"supported-db-version" description:"Print the max supported database version and exit"`
 	MigrateDBToVersion     int                 `long:"migrate-db-to-version" description:"Migrate to the specified database version and exit"`
@@ -374,14 +385,13 @@ func (cmd *Migration) supportedDBVersion() error {
 func (cmd *Migration) migrateDBToVersion() error {
 	version := cmd.MigrateDBToVersion
 
-	var newKey *encryption.Key
-	var oldKey *encryption.Key
-
-	if cmd.EncryptionKey.AEAD != nil {
-		newKey = encryption.NewKey(cmd.EncryptionKey.AEAD)
+	newKey, err := cmd.newKey()
+	if err != nil {
+		return err
 	}
-	if cmd.OldEncryptionKey.AEAD != nil {
-		oldKey = encryption.NewKey(cmd.OldEncryptionKey.AEAD)
+	oldKey, err := cmd.oldKey()
+	if err != nil {
+		return err
 	}
 
 	helper := migration.NewOpenHelper(
@@ -392,7 +402,7 @@ func (cmd *Migration) migrateDBToVersion() error {
 		oldKey,
 	)
 
-	err := helper.MigrateToVersion(version)
+	err = helper.MigrateToVersion(version)
 	if err != nil {
 		return fmt.Errorf("could not migrate to version: %d Reason: %s", version, err.Error())
 	}
@@ -402,14 +412,13 @@ func (cmd *Migration) migrateDBToVersion() error {
 }
 
 func (cmd *Migration) rotateEncryptionKey() error {
-	var newKey *encryption.Key
-	var oldKey *encryption.Key
-
-	if cmd.EncryptionKey.AEAD != nil {
-		newKey = encryption.NewKey(cmd.EncryptionKey.AEAD)
+	newKey, err := cmd.newKey()
+	if err != nil {
+		return err
 	}
-	if cmd.OldEncryptionKey.AEAD != nil {
-		oldKey = encryption.NewKey(cmd.OldEncryptionKey.AEAD)
+	oldKey, err := cmd.oldKey()
+	if err != nil {
+		return err
 	}
 
 	helper := migration.NewOpenHelper(
@@ -426,6 +435,14 @@ func (cmd *Migration) rotateEncryptionKey() error {
 	}
 
 	return helper.MigrateToVersion(version)
+}
+
+func (cmd *Migration) newKey() (*encryption.Key, error) {
+	return encryption.ResolveKey(cmd.EncryptionKey.AEAD, cmd.EncryptionKeyBase64.AEAD, cmd.EncryptionKeyHex.AEAD)
+}
+
+func (cmd *Migration) oldKey() (*encryption.Key, error) {
+	return encryption.ResolveKey(cmd.OldEncryptionKey.AEAD, cmd.OldEncryptionKeyBase64.AEAD, cmd.OldEncryptionKeyHex.AEAD)
 }
 
 func (cmd *Migration) migrateToLatestVersion() error {
@@ -889,6 +906,7 @@ func (cmd *RunCommand) constructAPIMembers(
 	dbSigningKeyFactory := db.NewSigningKeyFactory(dbConn)
 	dbClock := db.NewClock()
 	dbWall := db.NewWall(dbConn, &dbClock)
+	dbComponentFactory := db.NewComponentFactory(dbConn, cmd.NumGoroutineThreshold, rander{}, clock.NewClock(), db.RealGoroutineCounter{})
 
 	MiB := 1024 * 1024
 	claimsCacher := accessor.NewClaimsCacher(dbAccessTokenFactory, 1*MiB)
@@ -933,6 +951,7 @@ func (cmd *RunCommand) constructAPIMembers(
 		dbCheckFactory,
 		dbResourceConfigFactory,
 		userFactory,
+		dbComponentFactory,
 		pool,
 		secretManager,
 		credsManagers,
@@ -1055,11 +1074,12 @@ func (cmd *RunCommand) constructAPIMembers(
 		if err != nil {
 			return nil, err
 		}
-		members = append(members, grouper.Member{Name: "web-tls", Runner: http_server.NewTLSServer(
-			cmd.tlsBindAddr(),
-			httpsHandler,
-			tlsConfig,
-		)})
+		members = append(members, grouper.Member{
+			Name: "web-tls",
+			Runner: atctls.NewReloadableListener(
+				cmd.tlsBindAddr(), httpsHandler, tlsConfig, cmd.reloadTLSEnv(logger, dbConn), logger,
+			),
+		})
 	}
 
 	return members, nil
@@ -1111,7 +1131,7 @@ func (cmd *RunCommand) backendComponents(
 		return nil, err
 	}
 
-	buildContainerStrategy, noInputBuildContainerStrategy, checkBuildContainerStrategy, err := cmd.chooseBuildContainerStrategy()
+	buildContainerStrategy, noInputBuildContainerStrategy, checkBuildContainerStrategy, err := worker.NewPlacementStrategy(logger, cmd.ContainerPlacementStrategyOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -1204,7 +1224,8 @@ func (cmd *RunCommand) backendComponents(
 					Algorithm: alg,
 					BuildStarter: scheduler.NewBuildStarter(
 						builds.NewPlanner(atc.NewPlanFactory(time.Now().Unix())),
-						alg),
+						alg,
+						dbCheckFactory),
 				},
 				cmd.JobSchedulingMaxInFlight,
 			),
@@ -1499,20 +1520,12 @@ func (cmd *RunCommand) secretManager(logger lager.Logger) (creds.Secrets, error)
 	return cmd.CredentialManagement.NewSecrets(secretsFactory), nil
 }
 
-func (cmd *RunCommand) newKey() *encryption.Key {
-	var newKey *encryption.Key
-	if cmd.EncryptionKey.AEAD != nil {
-		newKey = encryption.NewKey(cmd.EncryptionKey.AEAD)
-	}
-	return newKey
+func (cmd *RunCommand) newKey() (*encryption.Key, error) {
+	return encryption.ResolveKey(cmd.EncryptionKey.AEAD, cmd.EncryptionKeyBase64.AEAD, cmd.EncryptionKeyHex.AEAD)
 }
 
-func (cmd *RunCommand) oldKey() *encryption.Key {
-	var oldKey *encryption.Key
-	if cmd.OldEncryptionKey.AEAD != nil {
-		oldKey = encryption.NewKey(cmd.OldEncryptionKey.AEAD)
-	}
-	return oldKey
+func (cmd *RunCommand) oldKey() (*encryption.Key, error) {
+	return encryption.ResolveKey(cmd.OldEncryptionKey.AEAD, cmd.OldEncryptionKeyBase64.AEAD, cmd.OldEncryptionKeyHex.AEAD)
 }
 
 func (cmd *RunCommand) constructWebHandler(logger lager.Logger) (http.Handler, error) {
@@ -1717,6 +1730,13 @@ func (cmd *RunCommand) validate() error {
 		)
 	}
 
+	if cmd.DefaultTaskCacheTTL > 0 && cmd.DefaultTaskCacheTTL < time.Second {
+		errs = multierror.Append(
+			errs,
+			errors.New("default-task-cache-ttl must be 0s or >= 1s. A TTL of < 1s is not supported."),
+		)
+	}
+
 	if err := cmd.validateCustomRoles(); err != nil {
 		errs = multierror.Append(errs, err)
 	}
@@ -1753,7 +1773,16 @@ func (cmd *RunCommand) constructDBConn(
 	connectionName string,
 	lockFactory lock.LockFactory,
 ) (db.DbConn, error) {
-	dbConn, err := db.Open(logger.Session("db"), driverName, cmd.Postgres.ConnectionString(), cmd.newKey(), cmd.oldKey(), connectionName, lockFactory)
+	newKey, err := cmd.newKey()
+	if err != nil {
+		return nil, err
+	}
+	oldKey, err := cmd.oldKey()
+	if err != nil {
+		return nil, err
+	}
+
+	dbConn, err := db.Open(logger.Session("db"), driverName, cmd.Postgres.ConnectionString(), newKey, oldKey, connectionName, lockFactory)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %s", err)
 	}
@@ -1793,10 +1822,6 @@ func constructLockConns(driverName, connectionString string) ([lock.FactoryCount
 		conns[i] = dbConn
 	}
 	return conns, nil
-}
-
-func (cmd *RunCommand) chooseBuildContainerStrategy() (worker.PlacementStrategy, worker.PlacementStrategy, worker.PlacementStrategy, error) {
-	return worker.NewPlacementStrategy(cmd.ContainerPlacementStrategyOptions)
 }
 
 func (cmd *RunCommand) configureAuthForDefaultTeam(teamFactory db.TeamFactory) error {
@@ -1856,6 +1881,7 @@ func (cmd *RunCommand) constructEngine(
 				cmd.DefaultGetTimeout,
 				cmd.DefaultPutTimeout,
 				cmd.DefaultTaskTimeout,
+				cmd.DefaultTaskCacheTTL,
 			),
 			cmd.ExternalURL.String(),
 			rateLimiter,
@@ -1994,6 +2020,16 @@ func (cmd *RunCommand) constructSkyHandler(
 		Scopes:       []string{"openid", "profile", "email", "federated:id", "groups"},
 	}
 
+	marshaledKey, err := x509.MarshalPKCS8PrivateKey(cmd.Auth.AuthFlags.SigningKey.PrivateKey)
+	if err != nil {
+		return nil, fmt.Errorf("sky server reading session signing key: %w", err)
+	}
+
+	stateKey, err := hkdf.Key(sha512.New, marshaledKey, nil, "concourse sky server state signing key", 64)
+	if err != nil {
+		return nil, fmt.Errorf("sky server generating state signing key: %w", err)
+	}
+
 	skyServer, err := skyserver.NewSkyServer(&skyserver.SkyConfig{
 		Logger:             logger.Session("sky"),
 		TokenMiddleware:    middleware,
@@ -2002,25 +2038,13 @@ func (cmd *RunCommand) constructSkyHandler(
 		HTTPClient:         httpClient,
 		ClaimsCacher:       claimsCacher,
 		AccessTokenFactory: accessTokenFactory,
-		StateSigningKey: deriveStateSigningKey(
-			oauth2Config.ClientID,
-			oauth2Config.ClientSecret,
-			cmd.Postgres.User,
-			cmd.Postgres.Password),
+		StateSigningKey:    stateKey,
 	})
 	if err != nil {
 		return nil, err
 	}
 
 	return skyserver.NewSkyHandler(skyServer), nil
-}
-
-func deriveStateSigningKey(clientID, clientSecret, dbUser, dbPassword string) []byte {
-	mac := hmac.New(sha256.New, []byte(clientSecret))
-	mac.Write([]byte(clientID))
-	mac.Write([]byte(dbUser))
-	mac.Write([]byte(dbPassword))
-	return mac.Sum(nil)
 }
 
 func (cmd *RunCommand) constructTokenVerifier(claimsCacher accessor.AccessTokenFetcher) accessor.TokenVerifier {
@@ -2048,6 +2072,7 @@ func (cmd *RunCommand) constructAPIHandler(
 	dbCheckFactory db.CheckFactory,
 	resourceConfigFactory db.ResourceConfigFactory,
 	dbUserFactory db.UserFactory,
+	dbComponentFactory db.ComponentFactory,
 	workerPool worker.Pool,
 	secretManager creds.Secrets,
 	credsManagers creds.Managers,
@@ -2126,6 +2151,7 @@ func (cmd *RunCommand) constructAPIHandler(
 		dbCheckFactory,
 		resourceConfigFactory,
 		dbUserFactory,
+		dbComponentFactory,
 
 		buildserver.NewEventHandler,
 
@@ -2193,6 +2219,12 @@ type RunnableComponent struct {
 
 func (cmd *RunCommand) isMTLSEnabled() bool {
 	return string(cmd.TLSCaCert) != ""
+}
+
+func (cmd *RunCommand) reloadTLSEnv(logger lager.Logger, dbConn db.DbConn) atctls.ConfigReloader {
+	return func() (*tls.Config, error) {
+		return cmd.tlsConfig(logger, dbConn)
+	}
 }
 
 type rander struct{}

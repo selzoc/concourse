@@ -116,7 +116,7 @@ var _ = Describe("BuildLogCollector", func() {
 				BeforeEach(func() {
 					fakeJob.ChronoBuildsStub = func(page db.Page) ([]db.BuildForAPI, db.Pagination, error) {
 						if *page.From == 5 {
-							return []db.BuildForAPI{sbDrained(9, false), sbDrained(8, false), sbDrained(7, true), sbDrained(6, false), sbDrained(5, true)}, db.Pagination{Newer: &db.Page{From: db.NewIntPtr(10), Limit: 5}}, nil
+							return []db.BuildForAPI{sbDrained(9, false), sbDrained(8, false), sbDrained(7, true), sbDrained(6, false), sbDrained(5, true)}, db.Pagination{Newer: &db.Page{From: new(10), Limit: 5}}, nil
 						} else if *page.From == 10 {
 							return []db.BuildForAPI{sbDrained(11, true), sbDrained(10, true)}, db.Pagination{}, nil
 						}
@@ -167,7 +167,7 @@ var _ = Describe("BuildLogCollector", func() {
 					)
 					fakeJob.ChronoBuildsStub = func(page db.Page) ([]db.BuildForAPI, db.Pagination, error) {
 						if *page.From == 5 {
-							return []db.BuildForAPI{sbDrained(9, true), sbDrained(8, false), sbDrained(7, false), sbDrained(6, true), sbDrained(5, false)}, db.Pagination{Newer: &db.Page{From: db.NewIntPtr(10), Limit: 5}}, nil
+							return []db.BuildForAPI{sbDrained(9, true), sbDrained(8, false), sbDrained(7, false), sbDrained(6, true), sbDrained(5, false)}, db.Pagination{Newer: &db.Page{From: new(10), Limit: 5}}, nil
 						} else if *page.From == 10 {
 							return []db.BuildForAPI{sbDrained(10, true)}, db.Pagination{}, nil
 						}
@@ -256,7 +256,7 @@ var _ = Describe("BuildLogCollector", func() {
 								sb(7),
 								sb(6),
 								sb(5),
-							}, db.Pagination{Newer: &db.Page{From: db.NewIntPtr(10), Limit: 5}}, nil
+							}, db.Pagination{Newer: &db.Page{From: new(10), Limit: 5}}, nil
 						} else if *page.From == 10 {
 							return []db.BuildForAPI{sb(10)}, db.Pagination{}, nil
 						} else {
@@ -513,9 +513,9 @@ var _ = Describe("BuildLogCollector", func() {
 						},
 					}, nil)
 
-					page1 := db.Page{From: db.NewIntPtr(5), Limit: 5}
-					page2 := db.Page{From: db.NewIntPtr(10), Limit: 5}
-					page3 := db.Page{From: db.NewIntPtr(15), Limit: 5}
+					page1 := db.Page{From: new(5), Limit: 5}
+					page2 := db.Page{From: new(10), Limit: 5}
+					page3 := db.Page{From: new(15), Limit: 5}
 					fakeJob.ChronoBuildsStub = func(page db.Page) ([]db.BuildForAPI, db.Pagination, error) {
 						if *page.From == *page1.From {
 							return []db.BuildForAPI{sb(9), successBuild(8), sb(7), reapedBuild(6), reapedBuild(5)}, db.Pagination{Newer: &page2}, nil
@@ -565,9 +565,9 @@ var _ = Describe("BuildLogCollector", func() {
 						},
 					}, nil)
 
-					page1 := db.Page{From: db.NewIntPtr(5), Limit: 5}
-					page2 := db.Page{From: db.NewIntPtr(10), Limit: 5}
-					page3 := db.Page{From: db.NewIntPtr(15), Limit: 5}
+					page1 := db.Page{From: new(5), Limit: 5}
+					page2 := db.Page{From: new(10), Limit: 5}
+					page3 := db.Page{From: new(15), Limit: 5}
 					fakeJob.ChronoBuildsStub = func(page db.Page) ([]db.BuildForAPI, db.Pagination, error) {
 						if *page.From == *page1.From {
 							return []db.BuildForAPI{sb(9), successBuild(8), sb(7), reapedBuild(6), reapedBuild(5)}, db.Pagination{Newer: &page2}, nil

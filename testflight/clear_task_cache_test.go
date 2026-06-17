@@ -11,7 +11,7 @@ var _ = Describe("Clear task cache", func() {
 		setAndUnpausePipeline("fixtures/clear-task-cache.yml")
 	})
 
-	It("clears the task's cache", func() {
+	It("clears the task's cache", func(ctx SpecContext) {
 		By("warming the cache")
 		watch := fly("trigger-job", "-j", inPipeline("clear-task-cache"), "-w")
 		Expect(watch).To(gbytes.Say("created-cache-file"))
@@ -29,5 +29,5 @@ var _ = Describe("Clear task cache", func() {
 		watch = fly("trigger-job", "-j", inPipeline("clear-task-cache"), "-w")
 		Expect(watch).To(gbytes.Say("created-cache-file"))
 		Expect(watch).NotTo(gbytes.Say("the-cached-file-already-exists"))
-	})
+	}, DefaultSpecTimeout)
 })

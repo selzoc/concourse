@@ -7,18 +7,18 @@ import (
 )
 
 var _ = Describe("Devices", func() {
-	It("mounts the /dev/fuse device to privileged containers", func() {
+	It("mounts the /dev/fuse device to privileged containers", func(ctx SpecContext) {
 		setAndUnpausePipeline("fixtures/devices.yml")
 
 		watch := fly("trigger-job", "-j", inPipeline("check-fuse-privileged"), "-w")
 		Expect(watch).To(gbytes.Say("succeeded"))
-	})
+	}, DefaultSpecTimeout)
 
-	It("does not mount the /dev/fuse device to unprivileged containers", func() {
+	It("does not mount the /dev/fuse device to unprivileged containers", func(ctx SpecContext) {
 		setAndUnpausePipeline("fixtures/devices.yml")
 
 		watch := flyUnsafe("trigger-job", "-j", inPipeline("check-fuse-unprivileged"), "-w")
 		Expect(watch.ExitCode()).ToNot(Equal(0))
 		Expect(watch).To(gbytes.Say("No such file or directory"))
-	})
+	}, DefaultSpecTimeout)
 })

@@ -23,7 +23,7 @@ var _ = Describe("Resource version", func() {
 				setAndUnpausePipeline("fixtures/resource-version-latest.yml", "-v", "hash="+hash)
 			})
 
-			It("only runs builds with latest version", func() {
+			It("only runs builds with latest version", func(ctx SpecContext) {
 				guid1 := newMockVersion("some-resource", "guid1")
 				watch := fly("trigger-job", "-j", inPipeline("some-passing-job"), "-w")
 				Expect(watch).To(gbytes.Say(guid1))
@@ -34,7 +34,7 @@ var _ = Describe("Resource version", func() {
 
 				watch = fly("trigger-job", "-j", inPipeline("some-passing-job"), "-w")
 				Expect(watch).To(gbytes.Say(guid4))
-			})
+			}, DefaultSpecTimeout)
 		})
 
 		Describe("version: every", func() {
@@ -42,7 +42,7 @@ var _ = Describe("Resource version", func() {
 				setAndUnpausePipeline("fixtures/resource-version-every.yml", "-v", "hash="+hash)
 			})
 
-			It("runs builds with every version", func() {
+			It("runs builds with every version", func(ctx SpecContext) {
 				guid1 := newMockVersion("some-resource", "guid1")
 				watch := fly("trigger-job", "-j", inPipeline("some-passing-job"), "-w")
 				Expect(watch).To(gbytes.Say(guid1))
@@ -59,7 +59,7 @@ var _ = Describe("Resource version", func() {
 
 				watch = fly("trigger-job", "-j", inPipeline("some-passing-job"), "-w")
 				Expect(watch).To(gbytes.Say(guid4))
-			})
+			}, DefaultSpecTimeout)
 		})
 
 		Describe("version: pinned", func() {
@@ -67,7 +67,7 @@ var _ = Describe("Resource version", func() {
 				setAndUnpausePipeline("fixtures/resource-version-every.yml", "-v", "hash="+hash)
 			})
 
-			It("only runs builds with the pinned version", func() {
+			It("only runs builds with the pinned version", func(ctx SpecContext) {
 				guid1 := newMockVersion("some-resource", "guid1")
 
 				watch := fly("trigger-job", "-j", inPipeline("some-passing-job"), "-w")
@@ -81,7 +81,7 @@ var _ = Describe("Resource version", func() {
 
 				watch = fly("trigger-job", "-j", inPipeline("some-passing-job"), "-w")
 				Expect(watch).To(gbytes.Say(guid3))
-			})
+			}, DefaultSpecTimeout)
 		})
 	})
 
@@ -119,10 +119,10 @@ var _ = Describe("Resource version", func() {
 				versionConfig = "latest"
 			})
 
-			It("only runs builds with pinned version", func() {
+			It("only runs builds with pinned version", func(ctx SpecContext) {
 				watch := fly("trigger-job", "-j", inPipeline("some-passing-job"), "-w")
 				Expect(watch).To(gbytes.Say(pinnedGUID))
-			})
+			}, DefaultSpecTimeout)
 		})
 
 		Describe("version: every", func() {
@@ -130,13 +130,13 @@ var _ = Describe("Resource version", func() {
 				versionConfig = "every"
 			})
 
-			It("only runs builds with pinned version", func() {
+			It("only runs builds with pinned version", func(ctx SpecContext) {
 				watch := fly("trigger-job", "-j", inPipeline("some-passing-job"), "-w")
 				Expect(watch).To(gbytes.Say(pinnedGUID))
 
 				watch = fly("trigger-job", "-j", inPipeline("some-passing-job"), "-w")
 				Expect(watch).To(gbytes.Say(pinnedGUID))
-			})
+			}, DefaultSpecTimeout)
 		})
 
 		Describe("version: pinned", func() {
@@ -144,10 +144,10 @@ var _ = Describe("Resource version", func() {
 				versionConfig = "version:" + olderGUID
 			})
 
-			It("only runs builds with the pinned version", func() {
+			It("only runs builds with the pinned version", func(ctx SpecContext) {
 				watch := fly("trigger-job", "-j", inPipeline("some-passing-job"), "-w")
 				Expect(watch).To(gbytes.Say(pinnedGUID))
-			})
+			}, DefaultSpecTimeout)
 		})
 	})
 })

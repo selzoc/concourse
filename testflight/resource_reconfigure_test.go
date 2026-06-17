@@ -8,7 +8,7 @@ import (
 )
 
 var _ = Describe("Reconfiguring a resource", func() {
-	It("picks up the new configuration immediately", func() {
+	It("picks up the new configuration immediately", func(ctx SpecContext) {
 		guid1, err := uuid.NewRandom()
 		Expect(err).ToNot(HaveOccurred())
 
@@ -30,5 +30,5 @@ var _ = Describe("Reconfiguring a resource", func() {
 
 		watch = fly("trigger-job", "-j", inPipeline("some-passing-job"), "-w")
 		Expect(watch).To(gbytes.Say(guid2.String()))
-	})
+	}, DefaultSpecTimeout)
 })

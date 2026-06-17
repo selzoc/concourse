@@ -12,11 +12,11 @@ var _ = Describe("A pipeline that propagates resources", func() {
 			setAndUnpausePipeline("fixtures/propagation.yml")
 		})
 
-		It("propagates resources via implicit and explicit outputs", func() {
+		It("propagates resources via implicit and explicit outputs", func(ctx SpecContext) {
 			fly("trigger-job", "-j", inPipeline("first-job"), "-w")
 			fly("trigger-job", "-j", inPipeline("pushing-job"), "-w")
 			fly("trigger-job", "-j", inPipeline("downstream-job"), "-w")
-		})
+		}, DefaultSpecTimeout)
 	})
 
 	Context("when the input/output are the same resource", func() {
@@ -24,7 +24,7 @@ var _ = Describe("A pipeline that propagates resources", func() {
 			setAndUnpausePipeline("fixtures/inputs_outputs.yml")
 		})
 
-		It("propogates the output version over the input version", func() {
+		It("propogates the output version over the input version", func(ctx SpecContext) {
 			fly("check-resource", "-r", inPipeline("some-resource"), "-f", "version:first-version")
 			fly("check-resource", "-r", inPipeline("some-resource"), "-f", "version:second-version")
 
@@ -34,6 +34,6 @@ var _ = Describe("A pipeline that propagates resources", func() {
 			watch = fly("trigger-job", "-j", inPipeline("downstream-job"), "-w")
 			Expect(watch).ToNot(gbytes.Say("second-version"))
 			Expect(watch).To(gbytes.Say("first-version"))
-		})
+		}, DefaultSpecTimeout)
 	})
 })

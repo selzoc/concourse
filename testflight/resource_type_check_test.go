@@ -22,10 +22,10 @@ var _ = Describe("Resource-types checks", func() {
 		Eventually(checkS).Should(gbytes.Say("succeeded"))
 	})
 
-	It("can check the resource-type", func() {
+	It("can check the resource-type", func(ctx SpecContext) {
 		checkS := fly("check-resource-type", "-r", inPipeline("custom-resource-type"))
 		Eventually(checkS).Should(gbytes.Say("succeeded"))
-	})
+	}, DefaultSpecTimeout)
 
 	Context("when there is a new version", func() {
 		var newVersion string
@@ -39,17 +39,17 @@ var _ = Describe("Resource-types checks", func() {
 			fly("check-resource-type", "-r", inPipeline("custom-resource-type"), "-f", "version:"+newVersion)
 		})
 
-		It("uses the updated resource type", func() {
+		It("uses the updated resource type", func(ctx SpecContext) {
 			watch := fly("trigger-job", "-j", inPipeline("resource-imager"), "-w")
 			Expect(watch).To(gbytes.Say("MIRRORED_VERSION=" + newVersion))
-		})
+		}, DefaultSpecTimeout)
 	})
 
 	Context("when the resource-type check fails", func() {
-		It("fails", func() {
+		It("fails", func(ctx SpecContext) {
 			watch := spawnFly("check-resource-type", "-r", inPipeline("failing-custom-resource-type"))
 			Eventually(watch.Out).Should(gbytes.Say("failed"))
 			Eventually(watch).Should(gexec.Exit(1))
-		})
+		}, DefaultSpecTimeout)
 	})
 })

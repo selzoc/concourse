@@ -475,7 +475,7 @@ var _ = Describe("Team", func() {
 						GardenAddr:      "3.4.5.6:7777",
 						BaggageclaimURL: "7.8.9.10:7878",
 					}),
-					builder.WithResourceVersions("some-resource"),
+					builder.WithResourceVersions("some-resource", time.Minute),
 					builder.WithResourceTypeVersions("some-type"),
 					builder.WithPrototypeVersions("some-prototype"),
 				)
@@ -543,7 +543,7 @@ var _ = Describe("Team", func() {
 						GardenAddr:      "3.4.5.6:7777",
 						BaggageclaimURL: "7.8.9.10:7878",
 					}),
-					builder.WithResourceVersions("some-resource"),
+					builder.WithResourceVersions("some-resource", time.Minute),
 				)
 
 				expiries := db.ContainerOwnerExpiries{
@@ -617,7 +617,7 @@ var _ = Describe("Team", func() {
 							GardenAddr:      "4.5.6.7:7777",
 							BaggageclaimURL: "8.9.10.11:7878",
 						}),
-						builder.WithResourceVersions("some-resource"),
+						builder.WithResourceVersions("some-resource", time.Minute),
 					)
 
 					resource2Container = resourceConfigCheckContainer(otherScenario.Workers[0], otherScenario.Resource("some-resource").ResourceConfigID())
@@ -1457,7 +1457,7 @@ var _ = Describe("Team", func() {
 				Expect(builds[1]).To(Equal(allBuilds[3]))
 
 				Expect(pagination.Newer).To(BeNil())
-				Expect(pagination.Older).To(Equal(&db.Page{To: db.NewIntPtr(allBuilds[2].ID()), Limit: 2}))
+				Expect(pagination.Older).To(Equal(&db.Page{To: new(allBuilds[2].ID()), Limit: 2}))
 
 				builds, pagination, err = team.PrivateAndPublicBuilds(*pagination.Older)
 				Expect(err).ToNot(HaveOccurred())
@@ -1467,8 +1467,8 @@ var _ = Describe("Team", func() {
 				Expect(builds[0]).To(Equal(allBuilds[2]))
 				Expect(builds[1]).To(Equal(allBuilds[1]))
 
-				Expect(pagination.Newer).To(Equal(&db.Page{From: db.NewIntPtr(allBuilds[3].ID()), Limit: 2}))
-				Expect(pagination.Older).To(Equal(&db.Page{To: db.NewIntPtr(allBuilds[0].ID()), Limit: 2}))
+				Expect(pagination.Newer).To(Equal(&db.Page{From: new(allBuilds[3].ID()), Limit: 2}))
+				Expect(pagination.Older).To(Equal(&db.Page{To: new(allBuilds[0].ID()), Limit: 2}))
 
 				builds, pagination, err = team.PrivateAndPublicBuilds(*pagination.Older)
 				Expect(err).ToNot(HaveOccurred())
@@ -1476,7 +1476,7 @@ var _ = Describe("Team", func() {
 				Expect(len(builds)).To(Equal(1))
 				Expect(builds[0]).To(Equal(allBuilds[0]))
 
-				Expect(pagination.Newer).To(Equal(&db.Page{From: db.NewIntPtr(allBuilds[1].ID()), Limit: 2}))
+				Expect(pagination.Newer).To(Equal(&db.Page{From: new(allBuilds[1].ID()), Limit: 2}))
 				Expect(pagination.Older).To(BeNil())
 
 				builds, pagination, err = team.PrivateAndPublicBuilds(*pagination.Newer)
@@ -1485,8 +1485,8 @@ var _ = Describe("Team", func() {
 				Expect(len(builds)).To(Equal(2))
 				Expect(builds[0]).To(Equal(allBuilds[2]))
 				Expect(builds[1]).To(Equal(allBuilds[1]))
-				Expect(pagination.Newer).To(Equal(&db.Page{From: db.NewIntPtr(allBuilds[3].ID()), Limit: 2}))
-				Expect(pagination.Older).To(Equal(&db.Page{To: db.NewIntPtr(allBuilds[0].ID()), Limit: 2}))
+				Expect(pagination.Newer).To(Equal(&db.Page{From: new(allBuilds[3].ID()), Limit: 2}))
+				Expect(pagination.Older).To(Equal(&db.Page{To: new(allBuilds[0].ID()), Limit: 2}))
 			})
 
 			Context("when there are builds that belong to different teams", func() {
@@ -1631,7 +1631,7 @@ var _ = Describe("Team", func() {
 			Context("only to", func() {
 				It("returns only those before to", func() {
 					returnedBuilds, _, err := team.BuildsWithTime(db.Page{
-						To:    db.NewIntPtr(int(builds[2].StartTime().Unix())),
+						To:    new(int(builds[2].StartTime().Unix())),
 						Limit: 50,
 					})
 
@@ -1643,7 +1643,7 @@ var _ = Describe("Team", func() {
 			Context("only from", func() {
 				It("returns only those after from", func() {
 					returnedBuilds, _, err := team.BuildsWithTime(db.Page{
-						From:  db.NewIntPtr(int(builds[1].StartTime().Unix())),
+						From:  new(int(builds[1].StartTime().Unix())),
 						Limit: 50,
 					})
 
@@ -1655,8 +1655,8 @@ var _ = Describe("Team", func() {
 			Context("from and to", func() {
 				It("returns only elements in the range", func() {
 					returnedBuilds, _, err := team.BuildsWithTime(db.Page{
-						From:  db.NewIntPtr(int(builds[1].StartTime().Unix())),
-						To:    db.NewIntPtr(int(builds[2].StartTime().Unix())),
+						From:  new(int(builds[1].StartTime().Unix())),
+						To:    new(int(builds[2].StartTime().Unix())),
 						Limit: 50,
 					})
 					Expect(err).NotTo(HaveOccurred())
@@ -1723,7 +1723,7 @@ var _ = Describe("Team", func() {
 		Context("when limiting the range of build ids", func() {
 			Context("specifying only from", func() {
 				It("returns all builds after and including the specified id", func() {
-					builds, _, err := team.Builds(db.Page{Limit: 50, From: db.NewIntPtr(secondBuild.ID())})
+					builds, _, err := team.Builds(db.Page{Limit: 50, From: new(secondBuild.ID())})
 					Expect(err).NotTo(HaveOccurred())
 					Expect(builds).To(ConsistOf(secondBuild, thirdBuild))
 				})
@@ -1731,7 +1731,7 @@ var _ = Describe("Team", func() {
 
 			Context("specifying only to", func() {
 				It("returns all builds before and including the specified id", func() {
-					builds, _, err := team.Builds(db.Page{Limit: 50, To: db.NewIntPtr(secondBuild.ID())})
+					builds, _, err := team.Builds(db.Page{Limit: 50, To: new(secondBuild.ID())})
 					Expect(err).NotTo(HaveOccurred())
 					Expect(builds).To(ConsistOf(oneOffBuild, build, secondBuild))
 				})
@@ -1739,7 +1739,7 @@ var _ = Describe("Team", func() {
 
 			Context("specifying both from and to", func() {
 				It("returns all builds within range of ids", func() {
-					builds, _, err := team.Builds(db.Page{Limit: 50, From: db.NewIntPtr(build.ID()), To: db.NewIntPtr(thirdBuild.ID())})
+					builds, _, err := team.Builds(db.Page{Limit: 50, From: new(build.ID()), To: new(thirdBuild.ID())})
 					Expect(err).NotTo(HaveOccurred())
 					Expect(builds).To(ConsistOf(build, secondBuild, thirdBuild))
 				})
@@ -1747,7 +1747,7 @@ var _ = Describe("Team", func() {
 
 			Context("specifying from greater than the biggest ID in the database", func() {
 				It("returns no rows error", func() {
-					builds, _, err := team.Builds(db.Page{Limit: 50, From: db.NewIntPtr(thirdBuild.ID() + 1)})
+					builds, _, err := team.Builds(db.Page{Limit: 50, From: new(thirdBuild.ID() + 1)})
 					Expect(err).ToNot(HaveOccurred())
 					Expect(builds).To(BeEmpty())
 				})
@@ -1755,7 +1755,7 @@ var _ = Describe("Team", func() {
 
 			Context("specifying invalid boundaries", func() {
 				It("should fail", func() {
-					_, _, err := team.Builds(db.Page{Limit: 50, From: db.NewIntPtr(thirdBuild.ID()), To: db.NewIntPtr(secondBuild.ID())})
+					_, _, err := team.Builds(db.Page{Limit: 50, From: new(thirdBuild.ID()), To: new(secondBuild.ID())})
 					Expect(err).To(HaveOccurred())
 				})
 			})
@@ -2125,6 +2125,7 @@ var _ = Describe("Team", func() {
 				builder.WithBaseResourceType(dbConn, "some-type"),
 				builder.WithResourceVersions(
 					"some-resource",
+					time.Minute,
 					atc.Version{"version": "v1"},
 					atc.Version{"version": "v2"},
 				),
@@ -2153,6 +2154,7 @@ var _ = Describe("Team", func() {
 				builder.WithBaseResourceType(dbConn, "some-type"),
 				builder.WithResourceVersions(
 					"some-resource",
+					time.Minute,
 					atc.Version{"version": "v1"},
 					atc.Version{"version": "v2"},
 				),
@@ -2177,6 +2179,7 @@ var _ = Describe("Team", func() {
 				builder.WithBaseResourceType(dbConn, "some-type"),
 				builder.WithResourceVersions(
 					"some-resource",
+					time.Minute,
 					atc.Version{"version": "v1"},
 					atc.Version{"version": "v2"},
 				),
@@ -2202,6 +2205,7 @@ var _ = Describe("Team", func() {
 				builder.WithBaseResourceType(dbConn, "some-type"),
 				builder.WithResourceVersions(
 					"some-resource",
+					time.Minute,
 					atc.Version{"version": "v1"},
 					atc.Version{"version": "v2"},
 				),
@@ -2254,6 +2258,7 @@ var _ = Describe("Team", func() {
 				builder.WithBaseResourceType(dbConn, "some-type"),
 				builder.WithResourceVersions(
 					"some-resource",
+					time.Minute,
 					atc.Version{"version": "v1"},
 					atc.Version{"version": "v2"},
 				),
@@ -2808,7 +2813,7 @@ var _ = Describe("Team", func() {
 					scenario.Run(
 						builder.WithPipeline(config),
 						// Imitate a check run that found no new versions
-						builder.WithResourceVersions("disabled-resource"),
+						builder.WithResourceVersions("disabled-resource", time.Minute),
 					)
 
 					updatedResource := scenario.Resource("disabled-resource")
@@ -2833,6 +2838,7 @@ var _ = Describe("Team", func() {
 						builder.WithBaseResourceType(dbConn, "some-type"),
 						builder.WithResourceVersions(
 							"some-resource",
+							time.Minute,
 							atc.Version{"version": "v1"},
 							atc.Version{"version": "v2"},
 							atc.Version{"version": "v3"},
@@ -2879,14 +2885,14 @@ var _ = Describe("Team", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(found).To(BeTrue())
 
-			_, err = taskCacheFactory.FindOrCreate(job.ID(), "some-task", "some-path")
+			_, err = taskCacheFactory.FindOrCreate(job.ID(), "some-task", "some-path", 0)
 			Expect(err).ToNot(HaveOccurred())
 
 			_, found, err = taskCacheFactory.Find(job.ID(), "some-task", "some-path")
 			Expect(err).ToNot(HaveOccurred())
 			Expect(found).To(BeTrue())
 
-			_, err = taskCacheFactory.FindOrCreate(job.ID(), "some-nested-task", "some-path")
+			_, err = taskCacheFactory.FindOrCreate(job.ID(), "some-nested-task", "some-path", 0)
 			Expect(err).ToNot(HaveOccurred())
 
 			_, found, err = taskCacheFactory.Find(job.ID(), "some-nested-task", "some-path")
@@ -2915,14 +2921,14 @@ var _ = Describe("Team", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(found).To(BeTrue())
 
-			_, err = taskCacheFactory.FindOrCreate(job.ID(), "some-task", "some-path")
+			_, err = taskCacheFactory.FindOrCreate(job.ID(), "some-task", "some-path", 0)
 			Expect(err).ToNot(HaveOccurred())
 
 			_, found, err = taskCacheFactory.Find(job.ID(), "some-task", "some-path")
 			Expect(err).ToNot(HaveOccurred())
 			Expect(found).To(BeTrue())
 
-			_, err = taskCacheFactory.FindOrCreate(job.ID(), "some-nested-task", "some-path")
+			_, err = taskCacheFactory.FindOrCreate(job.ID(), "some-nested-task", "some-path", 0)
 			Expect(err).ToNot(HaveOccurred())
 
 			_, found, err = taskCacheFactory.Find(job.ID(), "some-nested-task", "some-path")
@@ -2966,7 +2972,7 @@ var _ = Describe("Team", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(found).To(BeTrue())
 
-			_, err = taskCacheFactory.FindOrCreate(job.ID(), "some-task", "some-path")
+			_, err = taskCacheFactory.FindOrCreate(job.ID(), "some-task", "some-path", 0)
 			Expect(err).ToNot(HaveOccurred())
 
 			_, found, err = taskCacheFactory.Find(job.ID(), "some-task", "some-path")
@@ -2977,7 +2983,7 @@ var _ = Describe("Team", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(found).To(BeTrue())
 
-			_, err = taskCacheFactory.FindOrCreate(otherJob.ID(), "some-task", "some-path")
+			_, err = taskCacheFactory.FindOrCreate(otherJob.ID(), "some-task", "some-path", 0)
 			Expect(err).ToNot(HaveOccurred())
 
 			_, found, err = taskCacheFactory.Find(otherJob.ID(), "some-task", "some-path")
@@ -3785,7 +3791,7 @@ var _ = Describe("Team", func() {
 			resource := scenario.Resource("some-resource")
 			go loopUntilTimeoutOrPanic("check resource", func(i int) {
 				scenario.Run(
-					builder.WithResourceVersions(resource.Name(), atc.Version{"v": strconv.Itoa(i / 10)}),
+					builder.WithResourceVersions(resource.Name(), time.Minute, atc.Version{"v": strconv.Itoa(i / 10)}),
 				)
 			})()
 
@@ -3929,7 +3935,7 @@ var _ = Describe("Team", func() {
 						)
 						Expect(err).ToNot(HaveOccurred())
 
-						scope, err := resourceConfig.FindOrCreateScope(intptr(defaultResource.ID()))
+						scope, err := resourceConfig.FindOrCreateScope(new(defaultResource.ID()))
 						Expect(err).ToNot(HaveOccurred())
 
 						err = defaultResource.SetResourceConfigScope(scope)
@@ -3991,7 +3997,7 @@ var _ = Describe("Team", func() {
 							)
 							Expect(err).ToNot(HaveOccurred())
 
-							scope, err := resourceConfig.FindOrCreateScope(intptr(otherResource.ID()))
+							scope, err := resourceConfig.FindOrCreateScope(new(otherResource.ID()))
 							Expect(err).ToNot(HaveOccurred())
 
 							err = otherResource.SetResourceConfigScope(scope)
@@ -4083,7 +4089,7 @@ var _ = Describe("Team", func() {
 						GardenAddr:      "3.4.5.6:7777",
 						BaggageclaimURL: "7.8.9.10:7878",
 					}),
-					builder.WithResourceVersions("some-resource"),
+					builder.WithResourceVersions("some-resource", time.Minute),
 				)
 
 				rc, found, err := resourceConfigFactory.FindResourceConfigByID(scenario.Resource("some-resource").ResourceConfigID())
@@ -4183,7 +4189,7 @@ var _ = Describe("Team", func() {
 						GardenAddr:      "3.4.5.6:7777",
 						BaggageclaimURL: "7.8.9.10:7878",
 					}),
-					builder.WithResourceVersions("some-resource"),
+					builder.WithResourceVersions("some-resource", time.Minute),
 				)
 
 				rc, found, err := resourceConfigFactory.FindResourceConfigByID(scenario.Resource("some-resource").ResourceConfigID())

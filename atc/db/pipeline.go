@@ -62,6 +62,7 @@ type Pipeline interface {
 	Groups() atc.GroupConfigs
 	VarSources() atc.VarSourceConfigs
 	Display() *atc.DisplayConfig
+	UserData() any
 	ConfigVersion() ConfigVersion
 	Config() (atc.Config, error)
 	Public() bool
@@ -138,6 +139,7 @@ type pipeline struct {
 	groups        atc.GroupConfigs
 	varSources    atc.VarSourceConfigs
 	display       *atc.DisplayConfig
+	userData      any
 	configVersion ConfigVersion
 	paused        bool
 	pausedBy      string
@@ -159,6 +161,7 @@ var pipelinesQuery = psql.Select(`
 		p.groups,
 		p.var_sources,
 		p.display,
+		p.user_data,
 		p.nonce,
 		p.version,
 		p.team_id,
@@ -192,6 +195,7 @@ func (p *pipeline) InstanceVars() atc.InstanceVars   { return p.instanceVars }
 func (p *pipeline) Groups() atc.GroupConfigs         { return p.groups }
 func (p *pipeline) VarSources() atc.VarSourceConfigs { return p.varSources }
 func (p *pipeline) Display() *atc.DisplayConfig      { return p.display }
+func (p *pipeline) UserData() any                    { return p.userData }
 func (p *pipeline) ConfigVersion() ConfigVersion     { return p.configVersion }
 func (p *pipeline) Public() bool                     { return p.public }
 func (p *pipeline) Paused() bool                     { return p.paused }
@@ -266,6 +270,7 @@ func (p *pipeline) Config() (atc.Config, error) {
 		Prototypes:    prototypes.Configs(),
 		Jobs:          jobConfigs,
 		Display:       p.Display(),
+		UserData:      p.userData,
 	}
 
 	return config, nil
@@ -1286,6 +1291,7 @@ func requestScheduleForJobsInPipeline(tx Tx, pipelineID int) error {
 	if err != nil {
 		return err
 	}
+	defer rows.Close()
 
 	var jobIDs []int
 	for rows.Next() {
@@ -1298,17 +1304,15 @@ func requestScheduleForJobsInPipeline(tx Tx, pipelineID int) error {
 		jobIDs = append(jobIDs, id)
 	}
 
-	for _, jID := range jobIDs {
-		_, err := psql.Update("jobs").
-			Set("schedule_requested", sq.Expr("now()")).
-			Where(sq.Eq{
-				"id": jID,
-			}).
-			RunWith(tx).
-			Exec()
-		if err != nil {
-			return err
-		}
+	_, err = psql.Update("jobs").
+		Set("schedule_requested", sq.Expr("now()")).
+		Where(sq.Eq{
+			"id": jobIDs,
+		}).
+		RunWith(tx).
+		Exec()
+	if err != nil {
+		return err
 	}
 
 	return nil

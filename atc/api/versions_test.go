@@ -245,8 +245,8 @@ var _ = Describe("Versions API", func() {
 
 						page, versionFilter := fakeResource.VersionsArgsForCall(0)
 						Expect(page).To(Equal(db.Page{
-							From:  db.NewIntPtr(5),
-							To:    db.NewIntPtr(7),
+							From:  new(5),
+							To:    new(7),
 							Limit: 8,
 						}))
 						Expect(versionFilter).To(Equal(atc.Version{
@@ -400,8 +400,8 @@ var _ = Describe("Versions API", func() {
 						BeforeEach(func() {
 							fakePipeline.NameReturns("some-pipeline")
 							fakeResource.VersionsReturns(returnedVersions, db.Pagination{
-								Newer: &db.Page{From: db.NewIntPtr(4), Limit: 2},
-								Older: &db.Page{To: db.NewIntPtr(2), Limit: 2},
+								Newer: &db.Page{From: new(4), Limit: 2},
+								Older: &db.Page{To: new(2), Limit: 2},
 							}, true, nil)
 						})
 

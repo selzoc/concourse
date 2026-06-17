@@ -63,6 +63,8 @@ func TestTestflight(t *testing.T) {
 	RunSpecs(t, "TestFlight Suite")
 }
 
+const DefaultSpecTimeout = SpecTimeout(6 * time.Minute)
+
 var _ = SynchronizedBeforeSuite(func() []byte {
 	atcURL := os.Getenv("ATC_URL")
 	if atcURL != "" {

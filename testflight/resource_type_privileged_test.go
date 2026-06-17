@@ -30,7 +30,7 @@ var _ = Describe("Configuring a resource type in a pipeline config", func() {
 			privileged = "true"
 		})
 
-		It("performs 'check', 'get', and 'put' with privileged containers", func() {
+		It("performs 'check', 'get', and 'put' with privileged containers", func(ctx SpecContext) {
 			By("running 'get' with a privileged container")
 			watch := fly("trigger-job", "-j", inPipeline("resource-getter"), "-w")
 			Expect(watch).To(gbytes.Say("privileged: true"))
@@ -42,7 +42,7 @@ var _ = Describe("Configuring a resource type in a pipeline config", func() {
 			By("running 'put' with a privileged container")
 			watch = fly("trigger-job", "-j", inPipeline("resource-putter"), "-w")
 			Expect(watch).To(gbytes.Say("pushing in a privileged container"))
-		})
+		}, DefaultSpecTimeout)
 	})
 
 	Context("when the custom resource type is not privileged", func() {
@@ -50,7 +50,7 @@ var _ = Describe("Configuring a resource type in a pipeline config", func() {
 			privileged = "false"
 		})
 
-		It("performs 'check', 'get', and 'put' with unprivileged containers", func() {
+		It("performs 'check', 'get', and 'put' with unprivileged containers", func(ctx SpecContext) {
 			By("running 'get' with an unprivileged container")
 			watch := fly("trigger-job", "-j", inPipeline("resource-getter"), "-w")
 			Expect(watch).To(gbytes.Say("privileged: false"))
@@ -62,6 +62,6 @@ var _ = Describe("Configuring a resource type in a pipeline config", func() {
 			By("running 'put' with an unprivileged container")
 			watch = fly("trigger-job", "-j", inPipeline("resource-putter"), "-w")
 			Expect(watch).ToNot(gbytes.Say("running in a privileged container"))
-		})
+		}, DefaultSpecTimeout)
 	})
 })

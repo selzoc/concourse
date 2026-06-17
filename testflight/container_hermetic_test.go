@@ -7,7 +7,7 @@ import (
 )
 
 var _ = Describe("A job with a task that has hermetic set to true", func() {
-	It("runs the build", func() {
+	It("runs the build", func(ctx SpecContext) {
 
 		setAndUnpausePipeline("fixtures/container_hermetic.yml")
 
@@ -23,5 +23,5 @@ var _ = Describe("A job with a task that has hermetic set to true", func() {
 			Expect(watch).To(gbytes.Say("1 packets transmitted, 1 packets received, 0% packet loss"))
 			Expect(watch.ExitCode()).To(Equal(0))
 		}
-	})
+	}, DefaultSpecTimeout)
 })

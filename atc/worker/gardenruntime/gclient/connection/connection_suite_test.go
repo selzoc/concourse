@@ -16,7 +16,7 @@ func TestConnection(t *testing.T) {
 }
 
 func uint64ptr(n uint64) *uint64 {
-	return &n
+	return new(n)
 }
 
 type wrappedConnection struct {

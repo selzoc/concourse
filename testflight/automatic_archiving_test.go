@@ -40,7 +40,7 @@ var _ = Describe("archive-pipeline", func() {
 	})
 
 	Context("when the step is removed from the parent pipeline config", func() {
-		It("archives the child pipeline", func() {
+		It("archives the child pipeline", func(ctx SpecContext) {
 			execS := fly("get-pipeline", "-p", childPipeline)
 			Expect(execS.Out).To(gbytes.Say("normal-job"))
 
@@ -51,7 +51,7 @@ var _ = Describe("archive-pipeline", func() {
 			Eventually(func() *gbytes.Buffer {
 				return flyUnsafe("get-pipeline", "-p", childPipeline).Err
 			}, timeout, interval).Should(gbytes.Say("pipeline not found"), "the pipeline should be archived")
-		})
+		}, DefaultSpecTimeout)
 	})
 
 	Context("when the parent pipeline is deleted", func() {
@@ -59,11 +59,11 @@ var _ = Describe("archive-pipeline", func() {
 			fly("destroy-pipeline", "-n", "-p", parentPipeline)
 		})
 
-		It("archives the child pipeline", func() {
+		It("archives the child pipeline", func(ctx SpecContext) {
 			Eventually(func() *gbytes.Buffer {
 				return flyUnsafe("get-pipeline", "-p", childPipeline).Err
 			}, timeout, interval).Should(gbytes.Say("pipeline not found"), "the pipeline should be archived")
-		})
+		}, DefaultSpecTimeout)
 	})
 
 	Context("when the parent pipeline is archived", func() {
@@ -71,15 +71,15 @@ var _ = Describe("archive-pipeline", func() {
 			fly("archive-pipeline", "-n", "-p", parentPipeline)
 		})
 
-		It("archives the child pipeline", func() {
+		It("archives the child pipeline", func(ctx SpecContext) {
 			Eventually(func() *gbytes.Buffer {
 				return flyUnsafe("get-pipeline", "-p", childPipeline).Err
 			}, timeout, interval).Should(gbytes.Say("pipeline not found"), "the pipeline should be archived")
-		})
+		}, DefaultSpecTimeout)
 	})
 
 	Context("when the job is removed from the parent pipeline config", func() {
-		It("archives the child pipeline", func() {
+		It("archives the child pipeline", func(ctx SpecContext) {
 			execS := fly("get-pipeline", "-p", childPipeline)
 			Expect(execS.Out).To(gbytes.Say("normal-job"))
 
@@ -88,6 +88,6 @@ var _ = Describe("archive-pipeline", func() {
 			Eventually(func() *gbytes.Buffer {
 				return flyUnsafe("get-pipeline", "-p", childPipeline).Err
 			}, timeout, interval).Should(gbytes.Say("pipeline not found"), "the pipeline should be archived")
-		})
+		}, DefaultSpecTimeout)
 	})
 })

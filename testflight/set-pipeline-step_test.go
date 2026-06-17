@@ -48,7 +48,7 @@ var _ = Describe("set-pipeline Step", func() {
 			fly("destroy-pipeline", "-n", "-p", createdPipelineName+currentInstanceVars)
 		})
 
-		It("sets the other pipeline", func() {
+		It("sets the other pipeline", func(ctx SpecContext) {
 			By("second pipeline should initially not exist")
 			execS := spawnFly("get-pipeline", "-p", createdPipelineName)
 			<-execS.Exited
@@ -63,14 +63,14 @@ var _ = Describe("set-pipeline Step", func() {
 			By("should trigger the second pipeline job successfully")
 			execS = fly("trigger-job", "-w", "-j", createdPipelineName+"/normal-job")
 			Expect(execS.Out).To(gbytes.Say("hello world"))
-		})
+		}, DefaultSpecTimeout)
 
 		Context("when setting pipeline with instance vars", func() {
 			BeforeEach(func() {
 				currentInstanceVars = "/greetings:instanced-pipeline"
 			})
 
-			It("sets the other pipeline as instanced pipeline", func() {
+			It("sets the other pipeline as instanced pipeline", func(ctx SpecContext) {
 				By("second pipeline should initially not exist")
 				execS := spawnFly("get-pipeline", "-p", createdPipelineName+currentInstanceVars)
 				<-execS.Exited
@@ -85,7 +85,7 @@ var _ = Describe("set-pipeline Step", func() {
 				By("should trigger the second pipeline job successfully")
 				execS = fly("trigger-job", "-w", "-j", createdPipelineName+currentInstanceVars+"/normal-job")
 				Expect(execS.Out).To(gbytes.Say("instanced-pipeline"))
-			})
+			}, DefaultSpecTimeout)
 		})
 	})
 

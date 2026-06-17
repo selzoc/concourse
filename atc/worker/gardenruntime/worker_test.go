@@ -1031,11 +1031,11 @@ var _ = Describe("Garden Worker", func() {
 		)
 
 		origCacheHitVol := scenario.WorkerVolume("worker", "previous-cache-1").(gardenruntime.Volume)
-		err := origCacheHitVol.InitializeTaskCache(ctx, scenario.JobID, scenario.StepName, "cache-hit", false)
+		err := origCacheHitVol.InitializeTaskCache(ctx, scenario.JobID, scenario.StepName, "cache-hit", false, 0)
 		Expect(err).ToNot(HaveOccurred())
 
 		origWorkdirCacheVol := scenario.WorkerVolume("worker", "previous-cache-2").(gardenruntime.Volume)
-		err = origWorkdirCacheVol.InitializeTaskCache(ctx, scenario.JobID, scenario.StepName, ".", false)
+		err = origWorkdirCacheVol.InitializeTaskCache(ctx, scenario.JobID, scenario.StepName, ".", false, 0)
 		Expect(err).ToNot(HaveOccurred())
 
 		worker := scenario.Worker("worker")
@@ -1071,15 +1071,15 @@ var _ = Describe("Garden Worker", func() {
 		var newWorkdirVol *grt.Volume
 		By("re-initializing the cache volumes", func() {
 			cacheHitVol := volumeMount(volumeMounts, "/workdir/cache-hit").Volume.(gardenruntime.Volume)
-			err := cacheHitVol.InitializeTaskCache(ctx, scenario.JobID, scenario.StepName, "./cache-hit", false)
+			err := cacheHitVol.InitializeTaskCache(ctx, scenario.JobID, scenario.StepName, "./cache-hit", false, 0)
 			Expect(err).ToNot(HaveOccurred())
 
 			workdirVol := volumeMount(volumeMounts, "/workdir").Volume.(gardenruntime.Volume)
-			err = workdirVol.InitializeTaskCache(ctx, scenario.JobID, scenario.StepName, ".", false)
+			err = workdirVol.InitializeTaskCache(ctx, scenario.JobID, scenario.StepName, ".", false, 0)
 			Expect(err).ToNot(HaveOccurred())
 
 			cacheMissVol := volumeMount(volumeMounts, "/cache-miss").Volume.(gardenruntime.Volume)
-			err = cacheMissVol.InitializeTaskCache(ctx, scenario.JobID, scenario.StepName, "/cache-miss", false)
+			err = cacheMissVol.InitializeTaskCache(ctx, scenario.JobID, scenario.StepName, "/cache-miss", false, 0)
 			Expect(err).ToNot(HaveOccurred())
 
 			By("validating an import volume was created only when the cache already existed", func() {
@@ -1284,6 +1284,283 @@ var _ = Describe("Garden Worker", func() {
 				"/cache":         Not(grt.BePrivileged()),
 				"/etc/ssl/certs": Not(grt.BePrivileged()),
 			}))
+		})
+	})
+
+	Test("container with no image artifact leaves volume ownership as-is", func() {
+		inputVolume := grt.NewVolume("input")
+		scenario := Setup(
+			workertest.WithWorkers(
+				grt.NewWorker("worker").
+					WithVolumesCreatedInDBAndBaggageclaim(
+						inputVolume,
+					),
+			),
+		)
+		worker := scenario.Worker("worker")
+
+		container, _, err := worker.FindOrCreateContainer(
+			ctx,
+			db.NewFixedHandleContainerOwner("my-handle"),
+			db.ContainerMetadata{},
+			runtime.ContainerSpec{
+				TeamID:    scenario.TeamID,
+				JobID:     scenario.JobID,
+				StepName:  scenario.StepName,
+				Dir:       "/workdir",
+				ImageSpec: runtime.ImageSpec{},
+				User:      "somebody",
+				Inputs: []runtime.Input{
+					{
+						Artifact:        scenario.WorkerVolume("worker", inputVolume.Handle()),
+						DestinationPath: "/input",
+					},
+				},
+				Outputs: runtime.OutputPaths{
+					"output": "/output",
+				},
+				Caches: []string{"/cache"},
+			},
+			delegate,
+		)
+		Expect(err).ToNot(HaveOccurred())
+
+		volumes := bindMountVolumes(worker, container)
+		Expect(volumes).To(HaveLen(5))
+
+		for path, vol := range volumes {
+			Expect(*vol.Spec.Uid).To(Equal(runtime.ExistingOwner), "mount %s", path)
+			Expect(*vol.Spec.Gid).To(Equal(runtime.ExistingGroup), "mount %s", path)
+		}
+	})
+
+	Test("container running as non-root resolves uid/gid from /etc/{passwd/group}", func() {
+		imageVolume := grt.NewVolume("image-volume").WithContent(runtimetest.VolumeContent{
+			"metadata.json": grt.ImageMetadataFile(gardenruntime.ImageMetadata{}),
+			"rootfs/etc/passwd": {
+				Data: []byte("myuser:x:1234:5678::/home/myuser:/bin/sh\n"),
+			},
+			"rootfs/etc/group": {
+				Data: []byte("mygroup:x:5678:\n"),
+			},
+		})
+		inputVolume := grt.NewVolume("input")
+		scenario := Setup(
+			workertest.WithBasicJob(),
+			workertest.WithWorkers(
+				grt.NewWorker("worker").
+					WithVolumesCreatedInDBAndBaggageclaim(
+						imageVolume,
+						inputVolume,
+					),
+			),
+		)
+		worker := scenario.Worker("worker")
+
+		container, _, err := worker.FindOrCreateContainer(
+			ctx,
+			db.NewFixedHandleContainerOwner("my-handle"),
+			db.ContainerMetadata{},
+			runtime.ContainerSpec{
+				TeamID:   scenario.TeamID,
+				JobID:    scenario.JobID,
+				StepName: scenario.StepName,
+
+				Dir:  "/workdir",
+				User: "myuser",
+				ImageSpec: runtime.ImageSpec{
+					ImageArtifact: scenario.WorkerVolume("worker", imageVolume.Handle()),
+				},
+				Inputs: []runtime.Input{
+					{
+						Artifact:        scenario.WorkerVolume("worker", inputVolume.Handle()),
+						DestinationPath: "/input",
+					},
+				},
+				Outputs: runtime.OutputPaths{
+					"output": "/output",
+				},
+				Caches: []string{"/cache"},
+			},
+			delegate,
+		)
+		Expect(err).ToNot(HaveOccurred())
+
+		volumes := bindMountVolumes(worker, container)
+		Expect(volumes).To(HaveLen(5))
+
+		By("setting uid and gid on every bind-mount volume", func() {
+			for path, vol := range volumes {
+				Expect(*vol.Spec.Uid).To(Equal(1234), "mount %s", path)
+				Expect(*vol.Spec.Gid).To(Equal(5678), "mount %s", path)
+			}
+		})
+
+		By("leaving the rootfs volume's ownership as-is", func() {
+			rootfs, ok := findVolumeBy(worker, grt.StrategyEq(baggageclaim.COWStrategy{Parent: imageVolume}))
+			Expect(ok).To(BeTrue())
+			Expect(*rootfs.Spec.Uid).To(Equal(runtime.ExistingOwner))
+			Expect(*rootfs.Spec.Gid).To(Equal(runtime.ExistingGroup))
+		})
+	})
+
+	Test("container falls back to image's USER when task's run.user is not defined", func() {
+		imageVolume := grt.NewVolume("image-volume").WithContent(runtimetest.VolumeContent{
+			"metadata.json": grt.ImageMetadataFile(gardenruntime.ImageMetadata{
+				User: "myuser",
+			}),
+			"rootfs/etc/passwd": {
+				Data: []byte("myuser:x:1234:5678::/home/myuser:/bin/sh\n"),
+			},
+			"rootfs/etc/group": {
+				Data: []byte("mygroup:x:5678:\n"),
+			},
+		})
+		scenario := Setup(
+			workertest.WithBasicJob(),
+			workertest.WithWorkers(
+				grt.NewWorker("worker").
+					WithVolumesCreatedInDBAndBaggageclaim(imageVolume),
+			),
+		)
+		worker := scenario.Worker("worker")
+
+		container, _, err := worker.FindOrCreateContainer(
+			ctx,
+			db.NewFixedHandleContainerOwner("my-handle"),
+			db.ContainerMetadata{},
+			runtime.ContainerSpec{
+				TeamID:   scenario.TeamID,
+				JobID:    scenario.JobID,
+				StepName: scenario.StepName,
+
+				Dir:  "/workdir",
+				User: "",
+				ImageSpec: runtime.ImageSpec{
+					ImageArtifact: scenario.WorkerVolume("worker", imageVolume.Handle()),
+				},
+			},
+			delegate,
+		)
+		Expect(err).ToNot(HaveOccurred())
+
+		volumes := bindMountVolumes(worker, container)
+		Expect(volumes).To(HaveLen(2))
+
+		for path, vol := range volumes {
+			Expect(*vol.Spec.Uid).To(Equal(1234), "mount %s", path)
+			Expect(*vol.Spec.Gid).To(Equal(5678), "mount %s", path)
+		}
+	})
+
+	Test("container with non-root user falls back to existing ownership when /etc/passwd is missing", func() {
+		imageVolume := grt.NewVolume("image-volume").WithContent(runtimetest.VolumeContent{
+			"metadata.json": grt.ImageMetadataFile(gardenruntime.ImageMetadata{}),
+		})
+		scenario := Setup(
+			workertest.WithBasicJob(),
+			workertest.WithWorkers(
+				grt.NewWorker("worker").
+					WithVolumesCreatedInDBAndBaggageclaim(imageVolume),
+			),
+		)
+		worker := scenario.Worker("worker")
+
+		container, _, err := worker.FindOrCreateContainer(
+			ctx,
+			db.NewFixedHandleContainerOwner("my-handle"),
+			db.ContainerMetadata{},
+			runtime.ContainerSpec{
+				TeamID:   scenario.TeamID,
+				JobID:    scenario.JobID,
+				StepName: scenario.StepName,
+
+				Dir:  "/workdir",
+				User: "myuser",
+				ImageSpec: runtime.ImageSpec{
+					ImageArtifact: scenario.WorkerVolume("worker", imageVolume.Handle()),
+				},
+			},
+			delegate,
+		)
+		Expect(err).ToNot(HaveOccurred())
+
+		volumes := bindMountVolumes(worker, container)
+		Expect(volumes).To(HaveLen(2))
+
+		for path, vol := range volumes {
+			Expect(*vol.Spec.Uid).To(Equal(runtime.ExistingOwner), "mount %s", path)
+			Expect(*vol.Spec.Gid).To(Equal(runtime.ExistingGroup), "mount %s", path)
+		}
+	})
+
+	Test("container running as root leaves ownership as-is", func() {
+		imageVolume := grt.NewVolume("image-volume").WithContent(runtimetest.VolumeContent{
+			"metadata.json": grt.ImageMetadataFile(gardenruntime.ImageMetadata{}),
+			"rootfs/etc/passwd": {
+				Data: []byte("myuser:x:1234:5678::/home/myuser:/bin/sh\n"),
+			},
+			"rootfs/etc/group": {
+				Data: []byte("mygroup:x:5678:\n"),
+			},
+		})
+		inputVolume := grt.NewVolume("input")
+		scenario := Setup(
+			workertest.WithBasicJob(),
+			workertest.WithWorkers(
+				grt.NewWorker("worker").
+					WithVolumesCreatedInDBAndBaggageclaim(
+						imageVolume,
+						inputVolume,
+					),
+			),
+		)
+		worker := scenario.Worker("worker")
+
+		container, _, err := worker.FindOrCreateContainer(
+			ctx,
+			db.NewFixedHandleContainerOwner("my-handle"),
+			db.ContainerMetadata{},
+			runtime.ContainerSpec{
+				TeamID:   scenario.TeamID,
+				JobID:    scenario.JobID,
+				StepName: scenario.StepName,
+
+				Dir:  "/workdir",
+				User: "root",
+				ImageSpec: runtime.ImageSpec{
+					ImageArtifact: scenario.WorkerVolume("worker", imageVolume.Handle()),
+				},
+				Inputs: []runtime.Input{
+					{
+						Artifact:        scenario.WorkerVolume("worker", inputVolume.Handle()),
+						DestinationPath: "/input",
+					},
+				},
+				Outputs: runtime.OutputPaths{
+					"output": "/output",
+				},
+				Caches: []string{"/cache"},
+			},
+			delegate,
+		)
+		Expect(err).ToNot(HaveOccurred())
+
+		volumes := bindMountVolumes(worker, container)
+		Expect(volumes).To(HaveLen(5))
+
+		By("leaving ownership and group as-is", func() {
+			for path, vol := range volumes {
+				Expect(*vol.Spec.Uid).To(Equal(runtime.ExistingOwner), "mount %s", path)
+				Expect(*vol.Spec.Gid).To(Equal(runtime.ExistingGroup), "mount %s", path)
+			}
+		})
+
+		By("leaving the rootfs volume's ownership as-is", func() {
+			rootfs, ok := findVolumeBy(worker, grt.StrategyEq(baggageclaim.COWStrategy{Parent: imageVolume}))
+			Expect(ok).To(BeTrue())
+			Expect(*rootfs.Spec.Uid).To(Equal(runtime.ExistingOwner))
+			Expect(*rootfs.Spec.Gid).To(Equal(runtime.ExistingGroup))
 		})
 	})
 

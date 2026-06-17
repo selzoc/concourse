@@ -21,7 +21,7 @@ var _ = Describe("Resource config versions", func() {
 	// invalidated if the resource config id field on the resource gets updated
 	// due to a new version of the custom resource type that it is using.
 	Describe("build inputs and outputs are not affected by a change in resource config id", func() {
-		It("will run both jobs only once even with a new custom resource type version", func() {
+		It("will run both jobs only once even with a new custom resource type version", func(ctx SpecContext) {
 			By("waiting for a new build when the pipeline is created")
 			fly("trigger-job", "-j", inPipeline("initial-job"), "-w")
 
@@ -38,6 +38,6 @@ var _ = Describe("Resource config versions", func() {
 
 			By("using the version  of 'some-resource' consumed upstream")
 			Expect(flyTable("builds", "-j", inPipeline("initial-job"))).To(HaveLen(1))
-		})
+		}, DefaultSpecTimeout)
 	})
 })

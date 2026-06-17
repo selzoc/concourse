@@ -30,7 +30,7 @@ ls /bin
 		Expect(err).NotTo(HaveOccurred())
 	})
 
-	It("propagates the rootfs and metadata to the task", func() {
+	It("propagates the rootfs and metadata to the task", func(ctx SpecContext) {
 		err := os.WriteFile(
 			filepath.Join(fixture, "task.yml"),
 			[]byte(`---
@@ -61,9 +61,9 @@ run:
 		wait(exec, false)
 		Expect(exec).To(gbytes.Say("/opt/resource/check"))
 		Expect(exec).To(gbytes.Say("VERSION=hello-version"))
-	})
+	}, DefaultSpecTimeout)
 
-	It("allows a version to be specified", func() {
+	It("allows a version to be specified", func(ctx SpecContext) {
 		err := os.WriteFile(
 			filepath.Join(fixture, "task.yml"),
 			[]byte(`---
@@ -87,5 +87,5 @@ run:
 		exec := spawnFlyIn(fixture, "execute", "-c", "task.yml")
 		wait(exec, false)
 		Expect(exec).To(gbytes.Say("VERSION=hi-im-a-version"))
-	})
+	}, DefaultSpecTimeout)
 })

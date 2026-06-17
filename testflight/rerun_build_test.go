@@ -46,7 +46,7 @@ var _ = Describe("Rerunning a build", func() {
 				fly("rerun-build", "-j", inPipeline("some-passing-job"), "-b", "1", "-w")
 			})
 
-			It("creates a rerun of the first build", func() {
+			It("creates a rerun of the first build", func(ctx SpecContext) {
 				By("watching the job without specifying a build name")
 				watch := waitForBuildAndWatch("some-passing-job")
 				Eventually(watch).Should(gbytes.Say("second-version"))
@@ -58,14 +58,14 @@ var _ = Describe("Rerunning a build", func() {
 				By("confirming the rerun builds apears in build history")
 				build = fly("builds", "-j", inPipeline("some-passing-job"))
 				Expect(build).To(gbytes.Say(`1\.1`))
-			})
+			}, DefaultSpecTimeout)
 
 			Context("when creating a rerun of the rerun build", func() {
 				BeforeEach(func() {
 					fly("rerun-build", "-j", inPipeline("some-passing-job"), "-b", "1.1", "-w")
 				})
 
-				It("creates a rerun of the first build", func() {
+				It("creates a rerun of the first build", func(ctx SpecContext) {
 					By("watching the job with rerun build's name")
 					watch := waitForBuildAndWatch("some-passing-job", "1.2")
 					Eventually(watch).Should(gbytes.Say("first-version"))
@@ -73,7 +73,7 @@ var _ = Describe("Rerunning a build", func() {
 					By("confirming the rerun builds apears in build history")
 					build = fly("builds", "-j", inPipeline("some-passing-job"))
 					Expect(build).To(gbytes.Say(`1\.2`))
-				})
+				}, DefaultSpecTimeout)
 			})
 		})
 	})

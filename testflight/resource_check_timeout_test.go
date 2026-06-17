@@ -28,13 +28,13 @@ var _ = Describe("A resource check which times out", func() {
 			checkDelay = time.Minute
 		})
 
-		It("prints an error and cancels the check", func() {
+		It("prints an error and cancels the check", func(ctx SpecContext) {
 			check := spawnFly("check-resource", "-r", inPipeline("my-resource"))
 			<-check.Exited
 			Expect(check).To(gexec.Exit(1))
 			Expect(check).To(gbytes.Say("timeout exceeded"))
 			Expect(check).To(gbytes.Say("failed"))
-		})
+		}, DefaultSpecTimeout)
 	})
 
 	Context("when check script finishes before timeout", func() {
@@ -42,8 +42,8 @@ var _ = Describe("A resource check which times out", func() {
 			checkDelay = time.Second
 		})
 
-		It("succeeds", func() {
+		It("succeeds", func(ctx SpecContext) {
 			fly("check-resource", "-r", inPipeline("my-resource"))
-		})
+		}, DefaultSpecTimeout)
 	})
 })

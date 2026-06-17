@@ -93,13 +93,12 @@ var _ = Describe("ResourceConfig", func() {
 			Context("given a resource", func() {
 				Context("with global resources disabled", func() {
 					BeforeEach(func() {
-						// XXX(check-refactor): make this non-global
 						atc.EnableGlobalResources = false
 					})
 
 					It("finds or creates a unique scope", func() {
 						// create a scope with default resource
-						createdScope, err := resourceConfig.FindOrCreateScope(intptr(defaultResource.ID()))
+						createdScope, err := resourceConfig.FindOrCreateScope(new(defaultResource.ID()))
 						Expect(err).ToNot(HaveOccurred())
 						Expect(createdScope.ResourceID()).ToNot(BeNil())
 						Expect(*createdScope.ResourceID()).To(Equal(defaultResource.ID()))
@@ -108,7 +107,7 @@ var _ = Describe("ResourceConfig", func() {
 						Expect(err).ToNot(HaveOccurred())
 
 						// should find the scope of default resource
-						foundScope, err := resourceConfig.FindOrCreateScope(intptr(defaultResource.ID()))
+						foundScope, err := resourceConfig.FindOrCreateScope(new(defaultResource.ID()))
 						Expect(err).ToNot(HaveOccurred())
 						Expect(foundScope.ID()).To(Equal(createdScope.ID()))
 						seqAfterFind, err := currentResourceConfigScopesIdSeq()
@@ -116,7 +115,7 @@ var _ = Describe("ResourceConfig", func() {
 						Expect(seqAfterCreate).To(Equal(seqAfterFind))
 
 						// create a new scope with the same resource config but different resource id
-						otherCreatedScope, err := resourceConfig.FindOrCreateScope(intptr(otherResource.ID()))
+						otherCreatedScope, err := resourceConfig.FindOrCreateScope(new(otherResource.ID()))
 						Expect(err).ToNot(HaveOccurred())
 						Expect(otherCreatedScope.ID()).To(Equal(createdScope.ID() + 1))
 						seqAfterOtherCreate, err := currentResourceConfigScopesIdSeq()
@@ -125,16 +124,19 @@ var _ = Describe("ResourceConfig", func() {
 					})
 				})
 
-				Context("with global resources enabled", func() {
+				Context("with global resources enabled", Serial, func() {
 					BeforeEach(func() {
 						atc.EnableGlobalResources = true
+						DeferCleanup(func() {
+							atc.EnableGlobalResources = false
+						})
 					})
 
 					It("finds or creates a global scope", func() {
 						// create a scope with default resource
 						seqBeforeCreate, err := currentResourceConfigScopesIdSeq()
 						Expect(err).ToNot(HaveOccurred())
-						createdScope, err := resourceConfig.FindOrCreateScope(intptr(defaultResource.ID()))
+						createdScope, err := resourceConfig.FindOrCreateScope(new(defaultResource.ID()))
 						Expect(err).ToNot(HaveOccurred())
 						Expect(createdScope.ResourceID()).To(BeNil())
 						Expect(createdScope.ResourceConfig().ID()).To(Equal(resourceConfig.ID()))
@@ -143,7 +145,7 @@ var _ = Describe("ResourceConfig", func() {
 						Expect(seqAfterCreate).To(Equal(seqBeforeCreate + 1))
 
 						// should find the scope of default resource
-						foundScope, err := resourceConfig.FindOrCreateScope(intptr(defaultResource.ID()))
+						foundScope, err := resourceConfig.FindOrCreateScope(new(defaultResource.ID()))
 						Expect(err).ToNot(HaveOccurred())
 						Expect(foundScope.ID()).To(Equal(createdScope.ID()))
 						seqAfterFind, err := currentResourceConfigScopesIdSeq()
@@ -151,7 +153,7 @@ var _ = Describe("ResourceConfig", func() {
 						Expect(seqAfterCreate).To(Equal(seqAfterFind))
 
 						// should find the same scope even with a different resource id
-						foundScope, err = resourceConfig.FindOrCreateScope(intptr(otherResource.ID()))
+						foundScope, err = resourceConfig.FindOrCreateScope(new(otherResource.ID()))
 						Expect(err).ToNot(HaveOccurred())
 						Expect(foundScope.ID()).To(Equal(createdScope.ID()))
 						seqAfterFind, err = currentResourceConfigScopesIdSeq()
@@ -195,7 +197,7 @@ var _ = Describe("ResourceConfig", func() {
 
 			Context("given a resource", func() {
 				It("finds or creates a unique scope", func() {
-					createdScope, err := resourceConfig.FindOrCreateScope(intptr(defaultResource.ID()))
+					createdScope, err := resourceConfig.FindOrCreateScope(new(defaultResource.ID()))
 					Expect(err).ToNot(HaveOccurred())
 					Expect(createdScope.ResourceID()).ToNot(BeNil())
 					Expect(*createdScope.ResourceID()).To(Equal(defaultResource.ID()))
@@ -203,7 +205,7 @@ var _ = Describe("ResourceConfig", func() {
 					seqAfterCreate, err := currentResourceConfigScopesIdSeq()
 					Expect(err).ToNot(HaveOccurred())
 
-					foundScope, err := resourceConfig.FindOrCreateScope(intptr(defaultResource.ID()))
+					foundScope, err := resourceConfig.FindOrCreateScope(new(defaultResource.ID()))
 					Expect(err).ToNot(HaveOccurred())
 					Expect(foundScope.ID()).To(Equal(createdScope.ID()))
 					seqAfterFind, err := currentResourceConfigScopesIdSeq()

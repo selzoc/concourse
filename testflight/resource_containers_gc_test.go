@@ -34,7 +34,7 @@ var _ = Describe("Resource container GC", func() {
 			setAndUnpausePipeline("fixtures/resource-gc-removed.yml")
 		})
 
-		It("eventually removes the check container", func() {
+		It("eventually removes the check container", func(ctx SpecContext) {
 			Eventually(func() []string {
 				handles := []string{}
 				for _, container := range flyTable("containers") {
@@ -45,7 +45,7 @@ var _ = Describe("Resource container GC", func() {
 
 				return handles
 			}, 5*time.Minute, 10*time.Second).ShouldNot(ContainElement(checkContainerHandle))
-		})
+		}, DefaultSpecTimeout)
 	})
 
 	Describe("changing the resource config", func() {
@@ -61,7 +61,7 @@ var _ = Describe("Resource container GC", func() {
 			fly("check-resource", "-r", inPipeline("simple-resource"))
 		})
 
-		It("eventually removes the check container", func() {
+		It("eventually removes the check container", func(ctx SpecContext) {
 			Eventually(func() []string {
 				handles := []string{}
 				for _, container := range flyTable("containers") {
@@ -72,6 +72,6 @@ var _ = Describe("Resource container GC", func() {
 
 				return handles
 			}, 5*time.Minute, 10*time.Second).ShouldNot(ContainElement(checkContainerHandle))
-		})
+		}, DefaultSpecTimeout)
 	})
 })

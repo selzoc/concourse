@@ -9,7 +9,7 @@ var _ = Describe("Pipeline Var Sources", func() {
 		setAndUnpausePipeline("fixtures/var-sources.yml")
 	})
 
-	It("uses the pipeline var sources for resource checking and build execution", func() {
+	It("uses the pipeline var sources for resource checking and build execution", func(ctx SpecContext) {
 		fly("trigger-job", "-j", inPipeline("use-vars"), "-w")
-	})
+	}, DefaultSpecTimeout)
 })

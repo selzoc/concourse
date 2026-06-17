@@ -27,21 +27,21 @@ var _ = Describe("Checking a resource", func() {
 		)
 	})
 
-	It("saves the versions", func() {
+	It("saves the versions", func(ctx SpecContext) {
 		check := fly("check-resource", "-r", inPipeline("my-resource"))
 		Expect(check).To(gbytes.Say("my-resource"))
 		Expect(check).To(gbytes.Say("succeeded"))
 
 		versions := fly("resource-versions", "-r", inPipeline("my-resource"))
 		Expect(versions).To(gbytes.Say(hash))
-	})
+	}, DefaultSpecTimeout)
 
 	Context("when checking fails", func() {
 		BeforeEach(func() {
 			checkFailure = "super broken"
 		})
 
-		It("shows the check status failed", func() {
+		It("shows the check status failed", func(ctx SpecContext) {
 			check := spawnFly("check-resource", "-r", inPipeline("my-resource"))
 			<-check.Exited
 			Expect(check).To(gexec.Exit(1))
@@ -50,6 +50,6 @@ var _ = Describe("Checking a resource", func() {
 
 			resources := fly("resources", "-p", pipelineName)
 			Expect(resources).To(gbytes.Say("failed"))
-		})
+		}, DefaultSpecTimeout)
 	})
 })

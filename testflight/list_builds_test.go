@@ -60,13 +60,13 @@ var _ = Describe("fly builds command", func() {
 	})
 
 	Context("when no flags passed", func() {
-		It("displays the right info", func() {
+		It("displays the right info", func(ctx SpecContext) {
 			sess := fly("builds", "-p", testflightExposedPipeline)
 			Expect(sess).To(gbytes.Say(testflightExposedPipeline + "/some-passing-job"))
 
 			sess = fly("builds", "-p", testflightHiddenPipeline)
 			Expect(sess).To(gbytes.Say(testflightHiddenPipeline + "/some-passing-job"))
-		})
+		}, DefaultSpecTimeout)
 	})
 
 	Context("when specifying since and until", func() {
@@ -93,7 +93,7 @@ var _ = Describe("fly builds command", func() {
 			})
 		})
 
-		It("displays only builds that happened within that range of time", func() {
+		It("displays only builds that happened within that range of time", func(ctx SpecContext) {
 			var decodedBuilds []decodedBuild
 			withFlyTarget(adminFlyTarget, func() {
 				sess := fly("builds",
@@ -107,17 +107,17 @@ var _ = Describe("fly builds command", func() {
 			})
 
 			Expect(decodedBuilds).To(ConsistOf(allDecodedBuilds[1], allDecodedBuilds[2], allDecodedBuilds[3]))
-		})
+		}, DefaultSpecTimeout)
 	})
 
 	Context("when specifying values for team flag", func() {
-		It("retrieves only builds for the teams specified", func() {
+		It("retrieves only builds for the teams specified", func(ctx SpecContext) {
 			withFlyTarget(adminFlyTarget, func() {
 				sess := fly("builds", "--team=testflight", "--count=1000")
 				Expect(sess).To(gbytes.Say(testflightExposedPipeline))
 				Expect(sess).To(gbytes.Say("testflight"), "shows the team name")
 				Expect(sess).NotTo(gbytes.Say(mainExposedPipeline))
 			})
-		})
+		}, DefaultSpecTimeout)
 	})
 })

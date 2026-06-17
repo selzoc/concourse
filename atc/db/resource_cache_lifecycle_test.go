@@ -326,14 +326,14 @@ var _ = Describe("ResourceCacheLifecycle", func() {
 							},
 						},
 					}),
-					builder.WithResourceVersions("some-resource", atc.Version{"some": "version"}),
+					builder.WithResourceVersions("some-resource", time.Minute, atc.Version{"some": "version"}),
 				)
 
 				rc, found, err := resourceConfigFactory.FindResourceConfigByID(scenario.Resource("some-resource").ResourceConfigID())
 				Expect(found).To(BeTrue())
 				Expect(err).ToNot(HaveOccurred())
 
-				resourceConfigScope, err := rc.FindOrCreateScope(intptr(scenario.Resource("some-resource").ID()))
+				resourceConfigScope, err := rc.FindOrCreateScope(new(scenario.Resource("some-resource").ID()))
 				Expect(err).ToNot(HaveOccurred())
 
 				build, err := defaultJob.CreateBuild(defaultBuildCreatedBy)
@@ -389,7 +389,7 @@ var _ = Describe("ResourceCacheLifecycle", func() {
 								},
 							},
 						}),
-						builder.WithResourceVersions("some-resource", atc.Version{"some": "version"}),
+						builder.WithResourceVersions("some-resource", time.Minute, atc.Version{"some": "version"}),
 					)
 
 					build, err := defaultJob.CreateBuild(defaultBuildCreatedBy)

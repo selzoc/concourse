@@ -323,7 +323,7 @@ var _ = Describe("Build", func() {
 			resourceConfig, err := resourceConfigFactory.FindOrCreateResourceConfig(defaultResource.Type(), defaultResource.Source(), nil)
 			Expect(err).ToNot(HaveOccurred())
 
-			scope, err := resourceConfig.FindOrCreateScope(intptr(defaultResource.ID()))
+			scope, err := resourceConfig.FindOrCreateScope(new(defaultResource.ID()))
 			Expect(err).ToNot(HaveOccurred())
 
 			found, err := scope.UpdateLastCheckStartTime(1999, plan.Public())

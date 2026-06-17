@@ -10,7 +10,7 @@ import (
 )
 
 var _ = Describe("A job with a task that has container limits", func() {
-	It("successfully runs the build", func() {
+	It("successfully runs the build", func(ctx SpecContext) {
 		setAndUnpausePipeline("fixtures/container_limits.yml")
 
 		watch := spawnFly("trigger-job", "-j", inPipeline("container-limits-job"), "-w")
@@ -26,9 +26,9 @@ var _ = Describe("A job with a task that has container limits", func() {
 
 		Expect(watch).To(gbytes.Say("initializing"))
 		Expect(watch).To(gbytes.Say("hello"))
-	})
+	}, DefaultSpecTimeout)
 
-	It("sets the correct CPU and memory limits on the container", func() {
+	It("sets the correct CPU and memory limits on the container", func(ctx SpecContext) {
 		if config.Runtime == "guardian" && cgroupsV2Only() {
 			Skip("guardian runtime doesn't mount /sys/fs/cgroup on systems only using cgroup V2. See https://github.com/cloudfoundry/garden-runc-release/issues/384")
 		}
@@ -80,5 +80,5 @@ var _ = Describe("A job with a task that has container limits", func() {
 		// TODO-2025-10: The value returned is now 59. No clue why still and no
 		// time to currently investigate.
 		Expect(interceptS).To(Or(gbytes.Say("512"), gbytes.Say("20"), gbytes.Say("59")))
-	})
+	}, DefaultSpecTimeout)
 })

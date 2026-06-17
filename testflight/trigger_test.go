@@ -21,7 +21,7 @@ var _ = Describe("A job with an input with trigger: true", func() {
 		setAndUnpausePipeline("fixtures/simple-trigger.yml", "-v", "hash="+hash)
 	})
 
-	It("triggers when the resource changes", func() {
+	It("triggers when the resource changes", func(ctx SpecContext) {
 		By("running on the initial version")
 		fly("check-resource", "-r", inPipeline("some-resource"), "-f", "version:first-version")
 		watch := waitForBuildAndWatch("some-passing-job")
@@ -31,5 +31,5 @@ var _ = Describe("A job with an input with trigger: true", func() {
 		fly("check-resource", "-r", inPipeline("some-resource"), "-f", "version:second-version")
 		watch = waitForBuildAndWatch("some-passing-job", "2")
 		Eventually(watch).Should(gbytes.Say("second-version"))
-	})
+	}, DefaultSpecTimeout)
 })

@@ -12,7 +12,7 @@ var _ = Describe("A job with a step that retries", func() {
 		setAndUnpausePipeline("fixtures/retry.yml")
 	})
 
-	It("retries until the step succeeds", func() {
+	It("retries until the step succeeds", func(ctx SpecContext) {
 		watch := fly("trigger-job", "-j", inPipeline("retry-job"), "-w")
 		Expect(watch).To(gbytes.Say("initializing"))
 		Expect(watch).To(gbytes.Say("attempts: 1; failing"))
@@ -20,7 +20,7 @@ var _ = Describe("A job with a step that retries", func() {
 		Expect(watch).To(gbytes.Say("attempts: 3; success!"))
 		Expect(watch).ToNot(gbytes.Say("attempts:"))
 		Expect(watch).To(gbytes.Say("succeeded"))
-	})
+	}, DefaultSpecTimeout)
 
 	Context("hijacking jobs with retry steps", func() {
 		var hijackS *gexec.Session
@@ -32,7 +32,7 @@ var _ = Describe("A job with a step that retries", func() {
 			Expect(watch).To(gexec.Exit(1))
 		})
 
-		It("permits hijacking a specific attempt", func() {
+		It("permits hijacking a specific attempt", func(ctx SpecContext) {
 			fly(
 				"intercept",
 				"-j", pipelineName+"/retry-job-fail-for-hijacking",
@@ -41,15 +41,15 @@ var _ = Describe("A job with a step that retries", func() {
 				"--",
 				"sh", "-c", "[ `cat /tmp/retry_number` -eq 2 ]",
 			)
-		})
+		}, DefaultSpecTimeout)
 
-		It("correctly displays information about attempts", func() {
+		It("correctly displays information about attempts", func(ctx SpecContext) {
 			hijackS = spawnFly("intercept", "-j", pipelineName+"/retry-job-fail-for-hijacking", "--step", "succeed-on-3rd-attempt", "--", "sh", "-c", "exit")
 			Eventually(hijackS).Should(gbytes.Say("step: succeed-on-3rd-attempt, type: task, attempt: [1-3]"))
 			Eventually(hijackS).Should(gbytes.Say("step: succeed-on-3rd-attempt, type: task, attempt: [1-3]"))
 			Eventually(hijackS).Should(gbytes.Say("step: succeed-on-3rd-attempt, type: task, attempt: [1-3]"))
 			hijackS.Interrupt()
 			Eventually(hijackS).Should(gexec.Exit())
-		})
+		}, DefaultSpecTimeout)
 	})
 })

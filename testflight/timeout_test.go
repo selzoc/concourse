@@ -12,7 +12,7 @@ var _ = Describe("A job with a task with a timeout", func() {
 		setAndUnpausePipeline("fixtures/timeout.yml")
 	})
 
-	It("enforces the timeout", func() {
+	It("enforces the timeout", func(ctx SpecContext) {
 		successWatch := spawnFly("trigger-job", "-j", inPipeline("duration-successful-job"), "-w")
 		failedWatch := spawnFly("trigger-job", "-j", inPipeline("duration-fail-job"), "-w")
 
@@ -27,5 +27,5 @@ var _ = Describe("A job with a task with a timeout", func() {
 		Expect(failedWatch).To(gbytes.Say("initializing"))
 		Expect(failedWatch).To(gbytes.Say("timeout exceeded"))
 		Expect(failedWatch).To(gexec.Exit(1))
-	})
+	}, DefaultSpecTimeout)
 })

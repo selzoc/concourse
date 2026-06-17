@@ -12,12 +12,12 @@ var _ = Describe("A job with a task that produces outputs", func() {
 			setAndUnpausePipeline("fixtures/task-outputs.yml")
 		})
 
-		It("propagates the outputs from one task to another", func() {
+		It("propagates the outputs from one task to another", func(ctx SpecContext) {
 			watch := fly("trigger-job", "-j", inPipeline("some-job"), "-w")
 			Expect(watch).To(gbytes.Say("initializing"))
 
 			Expect(watch.Out.Contents()).To(ContainSubstring("./output-1/file-1"))
 			Expect(watch.Out.Contents()).To(ContainSubstring("./output-2/file-2"))
-		})
+		}, DefaultSpecTimeout)
 	})
 })

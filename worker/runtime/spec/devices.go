@@ -32,11 +32,9 @@ var (
 	// https://github.com/torvalds/linux/blob/master/Documentation/admin-guide/cgroup-v1/devices.rst
 	DefaultContainerDevices = []specs.LinuxDeviceCgroup{
 		// This allows use of the FUSE filesystem
-		{Access: "rwm", Type: fuseDevice.Type, Major: intRef(fuseDevice.Major), Minor: intRef(fuseDevice.Minor), Allow: true}, // /dev/fuse
+		{Access: "rwm", Type: fuseDevice.Type, Major: new(fuseDevice.Major), Minor: new(fuseDevice.Minor), Allow: true}, // /dev/fuse
 	}
 )
-
-func intRef(i int64) *int64 { return &i }
 
 func Devices(privilegedMode PrivilegedMode, privileged bool) []specs.LinuxDevice {
 	if !privileged || privilegedMode == IgnorePrivilegedMode {

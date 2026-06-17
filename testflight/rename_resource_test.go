@@ -8,7 +8,7 @@ import (
 
 var _ = Describe("Renaming a resource", func() {
 
-	It("preserves version history", func() {
+	It("preserves version history", func(ctx SpecContext) {
 		setAndUnpausePipeline("fixtures/resource-with-versions.yml")
 
 		guid1 := newMockVersion("some-resource", "guid1")
@@ -29,5 +29,5 @@ var _ = Describe("Renaming a resource", func() {
 		Expect(resourceVersions).To(gbytes.Say(guid3))
 		Expect(resourceVersions).To(gbytes.Say(guid2))
 		Expect(resourceVersions).To(gbytes.Say(guid1))
-	})
+	}, DefaultSpecTimeout)
 })

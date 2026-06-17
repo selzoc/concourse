@@ -126,6 +126,10 @@ type ContainerSpec struct {
 
 	// Hermetic indicates whether or not the container has external network access.
 	Hermetic bool
+
+	// User that bind mounts will be owned by and that processes will run under
+	// inside the container
+	User string
 }
 
 type BuildStepDelegate interface {
@@ -327,7 +331,7 @@ type Volume interface {
 
 	// InitializeTaskCache is called upon a successful run of the task step to
 	// register this Volume as a task cache.
-	InitializeTaskCache(ctx context.Context, jobID int, stepName string, path string, privileged bool) error
+	InitializeTaskCache(ctx context.Context, jobID int, stepName string, path string, privileged bool, ttl time.Duration) error
 
 	DBVolume() db.CreatedVolume
 }
@@ -363,4 +367,11 @@ type VolumeMount struct {
 	// MountPath is the absolute path in the Container at which the Volume is
 	// mounted.
 	MountPath string
+}
+
+const ExistingOwner, ExistingGroup = -1, -1
+
+type VolumeOwnership struct {
+	Uid int
+	Gid int
 }

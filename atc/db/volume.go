@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -164,7 +165,7 @@ type CreatedVolume interface {
 	InitializeStreamedResourceCache(ResourceCache, int) (*UsedWorkerResourceCache, error)
 	GetResourceCacheID() int
 	InitializeArtifact(name string, buildID int) (WorkerArtifact, error)
-	InitializeTaskCache(jobID int, stepName string, path string) error
+	InitializeTaskCache(jobID int, stepName string, path string, ttl time.Duration) error
 
 	ContainerHandle() string
 	ParentHandle() string
@@ -551,7 +552,7 @@ func initializeArtifact(conn DbConn, volumeID int, name string, buildID int) (Wo
 	return workerArtifact, nil
 }
 
-func (volume *createdVolume) InitializeTaskCache(jobID int, stepName string, path string) error {
+func (volume *createdVolume) InitializeTaskCache(jobID int, stepName string, path string, ttl time.Duration) error {
 	tx, err := volume.conn.Begin()
 	if err != nil {
 		return err
@@ -563,6 +564,7 @@ func (volume *createdVolume) InitializeTaskCache(jobID int, stepName string, pat
 		jobID:    jobID,
 		stepName: stepName,
 		path:     path,
+		ttl:      ttl,
 	}.findOrCreate(tx)
 	if err != nil {
 		return err

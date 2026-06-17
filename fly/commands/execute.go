@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -32,7 +33,7 @@ type ExecuteCommand struct {
 	InputMappings  []flaghelpers.InputMappingPairFlag `short:"m" long:"input-mapping"       value-name:"[NAME=STRING]"    description:"Map a resource to a different name as task input"`
 	InputsFrom     flaghelpers.JobFlag                `short:"j" long:"inputs-from" value-name:"PIPELINE/JOB" description:"A job to base the inputs on"`
 	Outputs        []flaghelpers.OutputPairFlag       `short:"o" long:"output"      value-name:"NAME=PATH"    description:"An output to fetch from the task (can be specified multiple times)"`
-	Image          string                             `long:"image" description:"Image resource for the one-off build"`
+	Image          string                             `long:"image" description:"Name of an input from the job named in --inputs-from to use as the image for the one-off build"`
 	Tags           []string                           `          long:"tag"         value-name:"TAG"          description:"A tag for a specific environment (can be specified multiple times)"`
 	Team           flaghelpers.TeamFlag               `long:"team" description:"Name of the team to run the build in, if different from the target default"`
 	Var            []flaghelpers.VariablePairFlag     `short:"v"  long:"var"       value-name:"[NAME=STRING]"  unquote:"false"  description:"Specify a string value to set for a variable in the pipeline"`
@@ -55,6 +56,10 @@ func (command *ExecuteCommand) Execute(args []string) error {
 	team, err = command.Team.LoadTeam(target)
 	if err != nil {
 		return err
+	}
+
+	if command.Image != "" && command.InputsFrom.String() == "" {
+		return errors.New("must set --inputs-from when using --image so fly knows which job to look up the image")
 	}
 
 	taskConfig, err := command.CreateTaskConfig(args)

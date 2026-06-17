@@ -24,8 +24,9 @@ type SpecSuite struct {
 	*require.Assertions
 }
 
-func uint64Ptr(i uint64) *uint64 { return &i }
-func int64Ptr(i int64) *int64    { return &i }
+func uint64Ptr(i uint64) *uint64 { return new(i) }
+
+func int64Ptr(i int64) *int64 { return new(i) }
 
 func (s *SpecSuite) TestContainerSpecValidations() {
 	for _, tc := range []struct {

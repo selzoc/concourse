@@ -22,7 +22,7 @@ var _ = Describe("Pin a resource", func() {
 			someResourceV2 = newMockVersion("some-resource", "bar")
 		})
 
-		It("can pin the resource with given version and comment", func() {
+		It("can pin the resource with given version and comment", func(ctx SpecContext) {
 			watch := fly("trigger-job", "-j", inPipeline("some-passing-job"), "-w")
 			Expect(watch).To(gbytes.Say("fetching.*" + someResourceV2))
 			Expect(watch).To(gbytes.Say("succeeded"))
@@ -34,6 +34,6 @@ var _ = Describe("Pin a resource", func() {
 			watch = fly("trigger-job", "-j", inPipeline("some-passing-job"), "-w")
 			Expect(watch).To(gbytes.Say("fetching.*" + someResourceV1))
 			Expect(watch).To(gbytes.Say("succeeded"))
-		})
+		}, DefaultSpecTimeout)
 	})
 })

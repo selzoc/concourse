@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"io"
-	"io/ioutil"
+
 	"os"
 	"time"
 )
@@ -54,7 +54,7 @@ func (files Archive) TarStream() (io.Reader, error) {
 }
 
 func (files Archive) ZipFile(tmpDir string) (string, error) {
-	zipFile, err := ioutil.TempFile("", "archivetest-zip")
+	zipFile, err := os.CreateTemp("", "archivetest-zip")
 	if err != nil {
 		return "", err
 	}

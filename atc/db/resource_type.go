@@ -87,7 +87,7 @@ func (resourceTypes ResourceTypes) Filter(checkable Checkable) ResourceTypes {
 }
 
 func (resourceTypes ResourceTypes) Deserialize() atc.ResourceTypes {
-	var atcResourceTypes atc.ResourceTypes
+	atcResourceTypes := make(atc.ResourceTypes, 0, len(resourceTypes))
 
 	for _, t := range resourceTypes {
 		// Apply source defaults to resource types
@@ -118,7 +118,7 @@ func (resourceTypes ResourceTypes) Deserialize() atc.ResourceTypes {
 }
 
 func (resourceTypes ResourceTypes) Configs() atc.ResourceTypes {
-	var configs atc.ResourceTypes
+	configs := make(atc.ResourceTypes, 0, len(resourceTypes))
 
 	for _, r := range resourceTypes {
 		configs = append(configs, atc.ResourceType{
@@ -167,7 +167,7 @@ var resourceTypesQuery = psql.Select(
 	Join("pipelines p ON p.id = r.pipeline_id").
 	Join("teams t ON t.id = p.team_id").
 	LeftJoin("resource_configs c ON c.id = r.resource_config_id").
-	LeftJoin("resource_config_scopes ro ON ro.resource_config_id = c.id").
+	LeftJoin("resource_config_scopes ro ON ro.resource_config_id = c.id AND ro.resource_id IS NULL").
 	Where(sq.Eq{"r.active": true})
 
 type resourceType struct {

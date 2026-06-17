@@ -10,26 +10,15 @@ import (
 )
 
 var _ = Describe("Download Fly CLI", func() {
-	var beforeFly string
-
-	BeforeEach(func() {
-		beforeFly = config.FlyBin
-
-		var err error
-		config.FlyBin, err = gexec.Build("github.com/concourse/concourse/fly")
+	It("can download fly CLI without issue", func(ctx SpecContext) {
+		flyBin, err := gexec.Build("github.com/concourse/concourse/fly")
 		Expect(err).ToNot(HaveOccurred())
-	})
+		defer os.RemoveAll(flyBin)
 
-	AfterEach(func() {
-		err := os.RemoveAll(config.FlyBin)
-		Expect(err).ToNot(HaveOccurred())
+		sess := spawn(flyBin, "-t", flyTarget, "sync", "--force")
+		wait(sess, false)
 
-		config.FlyBin = beforeFly
-	})
-
-	It("can download fly CLI without issue", func() {
-		watch := fly("sync", "--force")
-		Expect(watch).ToNot(gbytes.Say("warning: failed to parse Content-Length"))
-		Expect(watch).To(gbytes.Say("done"))
-	})
+		Expect(sess).ToNot(gbytes.Say("warning: failed to parse Content-Length"))
+		Expect(sess).To(gbytes.Say("done"))
+	}, DefaultSpecTimeout)
 })

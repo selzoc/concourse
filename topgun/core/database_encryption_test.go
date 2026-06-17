@@ -1,8 +1,6 @@
 package topgun_test
 
 import (
-	"os"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
@@ -25,17 +23,15 @@ var _ = Describe("Database secrets encryption", func() {
 			"--github-user", "victorias_id",
 			"--github-org", "victorias_secret_org",
 		)
-		<-setTeamSession.Exited
+		Eventually(setTeamSession).Should(gexec.Exit())
 
 		buildSession := Fly.Start("trigger-job", "-w", "-j", "pipeline-secrets-test/simple-job")
-		<-buildSession.Exited
-		Expect(buildSession.ExitCode()).To(Equal(0))
+		Eventually(buildSession).Should(gexec.Exit(0))
 	}
 
 	getPipeline := func() *gexec.Session {
 		session := Fly.Start("get-pipeline", "-p", "pipeline-secrets-test")
-		<-session.Exited
-		Expect(session.ExitCode()).To(Equal(0))
+		Eventually(session).Should(gexec.Exit(0))
 		return session
 	}
 
@@ -157,26 +153,23 @@ var _ = Describe("Database secrets encryption", func() {
 					var deploy *gexec.Session
 					var boshLogs *gexec.Session
 
-					BeforeEach(func() {
-						boshLogs = SpawnBosh("logs", "-f")
-
-						deploy = StartDeploy("deployments/concourse.yml", "-o", "operations/encryption-bogus.yml")
-						<-deploy.Exited
-						Expect(deploy.ExitCode()).To(Equal(1))
+					AfterEach(func() {
+						boshLogs.Interrupt()
+						Eventually(boshLogs).Should(gexec.Exit())
 					})
 
 					AfterEach(func() {
-						boshLogs.Signal(os.Interrupt)
-						<-boshLogs.Exited
-					})
-
-					AfterEach(func() {
+						deploy.Interrupt()
+						Eventually(deploy).Should(gexec.Exit())
 						Deploy("deployments/concourse.yml", "-o", "operations/encryption.yml")
 					})
 
 					It("fails to deploy with a useful message", func() {
-						Expect(deploy).To(gbytes.Say("Review logs for failed jobs: web"))
-						Expect(boshLogs).To(gbytes.Say("row encrypted with neither old nor new key"))
+						boshLogs = SpawnBosh("logs", "-f")
+						deploy = StartDeploy("deployments/concourse.yml", "-o", "operations/encryption-bogus.yml")
+
+						Eventually(deploy, "10m").To(gbytes.Say("Review logs for failed jobs: web"))
+						Eventually(boshLogs, "10m").To(gbytes.Say("row encrypted with neither old nor new key"))
 					})
 				})
 

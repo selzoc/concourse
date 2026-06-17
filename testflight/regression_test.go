@@ -8,11 +8,11 @@ import (
 
 var _ = Describe("Regression tests", func() {
 	Describe("issue 7282", func() {
-		It("does not error when resources emit long metadata strings", func() {
+		It("does not error when resources emit long metadata strings", func(ctx SpecContext) {
 			setAndUnpausePipeline("fixtures/long-metadata.yml")
 
 			watch := fly("trigger-job", "-j", inPipeline("job"), "-w")
 			Expect(watch).To(gexec.Exit(0))
-		})
+		}, DefaultSpecTimeout)
 	})
 })

@@ -11,7 +11,7 @@ var _ = Describe("Renaming a job", func() {
 		setAndUnpausePipeline("fixtures/simple.yml")
 	})
 
-	It("retains job history", func() {
+	It("retains job history", func(ctx SpecContext) {
 		fly("trigger-job", "-j", inPipeline("simple"), "-w")
 		build := fly("builds", "-p", pipelineName)
 		Expect(build).To(gbytes.Say(pipelineName + "/simple"))
@@ -20,5 +20,5 @@ var _ = Describe("Renaming a job", func() {
 
 		build = fly("builds", "-p", pipelineName)
 		Expect(build).To(gbytes.Say(pipelineName + "/rename-simple"))
-	})
+	}, DefaultSpecTimeout)
 })

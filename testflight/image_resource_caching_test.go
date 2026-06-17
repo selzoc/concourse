@@ -26,7 +26,7 @@ var _ = Describe("image resource caching", func() {
 		)
 	})
 
-	It("gets the image resource from the cache based on given params", func() {
+	It("gets the image resource from the cache based on given params", func(ctx SpecContext) {
 		By("triggering the resource get with params")
 		watch := fly("trigger-job", "-j", inPipeline("with-params"), "-w")
 		Expect(watch).To(gbytes.Say(`fetching.*` + version))
@@ -42,5 +42,5 @@ var _ = Describe("image resource caching", func() {
 		By("triggering the resource get without params")
 		watch = fly("trigger-job", "-j", inPipeline("without-params"), "-w")
 		Expect(watch).ToNot(gbytes.Say(`fetching.*` + version))
-	})
+	}, DefaultSpecTimeout)
 })

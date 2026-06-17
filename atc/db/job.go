@@ -81,6 +81,9 @@ type Job interface {
 	Paused() bool
 	PausedBy() string
 	PausedAt() time.Time
+	// Returns true if the pipeline the job belongs to is paused
+	PipelineIsPaused() bool
+	PipelineIsArchived() bool
 	Pause(pausedBy string) error
 	Unpause() error
 
@@ -133,7 +136,9 @@ var jobsQuery = psql.Select(
 	"j.disable_manual_trigger",
 	"j.disable_reruns",
 	"j.paused_by",
-	"j.paused_at").
+	"j.paused_at",
+	"p.paused",
+	"p.archived").
 	From("jobs j").
 	LeftJoin("pipelines p ON j.pipeline_id = p.id").
 	LeftJoin("teams t ON p.team_id = t.id")
@@ -148,6 +153,8 @@ func (e FirstLoggedBuildIDDecreasedError) Error() string {
 	return fmt.Sprintf("first logged build id for job '%s' decreased from %d to %d", e.Job, e.OldID, e.NewID)
 }
 
+var _ Job = (*job)(nil)
+
 type job struct {
 	pipelineRef
 
@@ -156,6 +163,8 @@ type job struct {
 	paused                bool
 	pausedBy              string
 	pausedAt              time.Time
+	pipelinePaused        bool
+	pipelineArchived      bool
 	public                bool
 	firstLoggedBuildID    int
 	teamID                int
@@ -200,10 +209,10 @@ func (j *job) SetHasNewInputs(hasNewInputs bool) error {
 
 type Jobs []Job
 
-func (jobs Jobs) Configs() (atc.JobConfigs, error) {
-	var configs atc.JobConfigs
+func (js Jobs) Configs() (atc.JobConfigs, error) {
+	configs := make(atc.JobConfigs, 0, len(js))
 
-	for _, j := range jobs {
+	for _, j := range js {
 		config, err := j.Config()
 		if err != nil {
 			return nil, err
@@ -220,6 +229,8 @@ func (j *job) Name() string                     { return j.name }
 func (j *job) Paused() bool                     { return j.paused }
 func (j *job) PausedAt() time.Time              { return j.pausedAt }
 func (j *job) PausedBy() string                 { return j.pausedBy }
+func (j *job) PipelineIsPaused() bool           { return j.pipelinePaused }
+func (j *job) PipelineIsArchived() bool         { return j.pipelineArchived }
 func (j *job) Public() bool                     { return j.public }
 func (j *job) FirstLoggedBuildID() int          { return j.firstLoggedBuildID }
 func (j *job) TeamID() int                      { return j.teamID }
@@ -282,6 +293,7 @@ func (j *job) AlgorithmInputs() (InputConfigs, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	var inputs InputConfigs
 	m := pgtype.NewMap()
@@ -355,6 +367,7 @@ func (j *job) Inputs() ([]atc.JobInput, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	var inputs []atc.JobInput
 	m := pgtype.NewMap()
@@ -410,6 +423,7 @@ func (j *job) Outputs() ([]atc.JobOutput, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	var outputs []atc.JobOutput
 	for rows.Next() {
@@ -605,21 +619,16 @@ func (j *job) ScheduleBuild(build Build) (bool, error) {
 		return true, nil
 	}
 
+	if j.paused || j.pipelinePaused {
+		return false, nil
+	}
+
 	tx, err := j.conn.Begin()
 	if err != nil {
 		return false, err
 	}
 
 	defer tx.Rollback()
-
-	paused, err := j.isPipelineOrJobPaused(tx)
-	if err != nil {
-		return false, err
-	}
-
-	if paused {
-		return false, nil
-	}
 
 	reached, err := j.isMaxInFlightReached(tx, build.ID())
 	if err != nil {
@@ -1038,6 +1047,7 @@ func (j *job) getSerialGroups(tx Tx) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	var serialGroups []string
 	for rows.Next() {
@@ -1387,25 +1397,6 @@ func (j *job) getNextBuildInputs(tx Tx) ([]BuildInput, error) {
 	return buildInputs, err
 }
 
-func (j *job) isPipelineOrJobPaused(tx Tx) (bool, error) {
-	if j.paused {
-		return true, nil
-	}
-
-	var paused bool
-	err := psql.Select("paused").
-		From("pipelines").
-		Where(sq.Eq{"id": j.pipelineID}).
-		RunWith(tx).
-		QueryRow().
-		Scan(&paused)
-	if err != nil {
-		return false, err
-	}
-
-	return paused, nil
-}
-
 func scanJob(j *job, row scannable) error {
 	var (
 		config               sql.NullString
@@ -1416,7 +1407,7 @@ func scanJob(j *job, row scannable) error {
 	)
 
 	m := pgtype.NewMap()
-	err := row.Scan(&j.id, &j.name, &config, &j.paused, &j.public, &j.firstLoggedBuildID, &j.pipelineID, &j.pipelineName, &pipelineInstanceVars, &j.teamID, &j.teamName, &nonce, m.SQLScanner(&j.tags), &j.hasNewInputs, &j.scheduleRequestedTime, &j.maxInFlight, &j.disableManualTrigger, &j.disableReruns, &pausedBy, &pausedAt)
+	err := row.Scan(&j.id, &j.name, &config, &j.paused, &j.public, &j.firstLoggedBuildID, &j.pipelineID, &j.pipelineName, &pipelineInstanceVars, &j.teamID, &j.teamName, &nonce, m.SQLScanner(&j.tags), &j.hasNewInputs, &j.scheduleRequestedTime, &j.maxInFlight, &j.disableManualTrigger, &j.disableReruns, &pausedBy, &pausedAt, &j.pipelinePaused, &j.pipelineArchived)
 	if err != nil {
 		return err
 	}
@@ -1517,17 +1508,15 @@ func requestScheduleOnDownstreamJobs(tx Tx, jobID int) error {
 		jobIDs = append(jobIDs, id)
 	}
 
-	for _, jID := range jobIDs {
-		_, err := psql.Update("jobs").
-			Set("schedule_requested", sq.Expr("now()")).
-			Where(sq.Eq{
-				"id": jID,
-			}).
-			RunWith(tx).
-			Exec()
-		if err != nil {
-			return err
-		}
+	_, err = psql.Update("jobs").
+		Set("schedule_requested", sq.Expr("now()")).
+		Where(sq.Eq{
+			"id": jobIDs,
+		}).
+		RunWith(tx).
+		Exec()
+	if err != nil {
+		return err
 	}
 
 	return nil

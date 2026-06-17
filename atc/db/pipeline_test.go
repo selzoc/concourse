@@ -621,8 +621,8 @@ var _ = Describe("Pipeline", func() {
 
 			scenarioPipeline1 = dbtest.Setup(
 				builder.WithPipeline(pipelineConfig),
-				builder.WithResourceVersions("some-resource"),
-				builder.WithResourceVersions("some-really-other-resource"),
+				builder.WithResourceVersions("some-resource", time.Minute),
+				builder.WithResourceVersions("some-really-other-resource", time.Minute),
 			)
 
 			otherPipelineConfig := atc.Config{
@@ -672,7 +672,7 @@ var _ = Describe("Pipeline", func() {
 
 			scenarioPipeline2 = dbtest.Setup(
 				builder.WithPipeline(otherPipelineConfig),
-				builder.WithResourceVersions("some-other-resource"),
+				builder.WithResourceVersions("some-other-resource", time.Minute),
 			)
 
 			resource = scenarioPipeline1.Resource(resourceName)
@@ -698,7 +698,7 @@ var _ = Describe("Pipeline", func() {
 					{
 						ID:      resource.ID(),
 						Name:    resource.Name(),
-						ScopeID: intptr(resource.ResourceConfigScopeID()),
+						ScopeID: new(resource.ResourceConfigScopeID()),
 					},
 					{
 						ID:      otherResource.ID(),
@@ -708,7 +708,7 @@ var _ = Describe("Pipeline", func() {
 					{
 						ID:      reallyOtherResource.ID(),
 						Name:    reallyOtherResource.Name(),
-						ScopeID: intptr(reallyOtherResource.ResourceConfigScopeID()),
+						ScopeID: new(reallyOtherResource.ResourceConfigScopeID()),
 					},
 				}))
 
@@ -732,13 +732,13 @@ var _ = Describe("Pipeline", func() {
 				Expect(resourceVersions).To(HaveLen(0))
 
 				By("including saved versioned resources of the current pipeline")
-				scenarioPipeline1.Run(builder.WithResourceVersions(resourceName, atc.Version{"version": "1"}))
+				scenarioPipeline1.Run(builder.WithResourceVersions(resourceName, time.Minute, atc.Version{"version": "1"}))
 
 				savedVR1, found, err := resource.FindVersion(atc.Version{"version": "1"})
 				Expect(err).ToNot(HaveOccurred())
 				Expect(found).To(BeTrue())
 
-				scenarioPipeline1.Run(builder.WithResourceVersions(resourceName, atc.Version{"version": "2"}))
+				scenarioPipeline1.Run(builder.WithResourceVersions(resourceName, time.Minute, atc.Version{"version": "2"}))
 
 				savedVR2, found, err := resource.FindVersion(atc.Version{"version": "2"})
 				Expect(err).ToNot(HaveOccurred())
@@ -756,7 +756,7 @@ var _ = Describe("Pipeline", func() {
 					{
 						ID:      resource.ID(),
 						Name:    resource.Name(),
-						ScopeID: intptr(resource.ResourceConfigScopeID()),
+						ScopeID: new(resource.ResourceConfigScopeID()),
 					},
 					{
 						ID:      otherResource.ID(),
@@ -766,13 +766,13 @@ var _ = Describe("Pipeline", func() {
 					{
 						ID:      reallyOtherResource.ID(),
 						Name:    reallyOtherResource.Name(),
-						ScopeID: intptr(reallyOtherResource.ResourceConfigScopeID()),
+						ScopeID: new(reallyOtherResource.ResourceConfigScopeID()),
 					},
 				}))
 				Expect(versions.Jobs).To(ConsistOf(jobs))
 
 				By("not including saved versioned resources of other pipelines")
-				scenarioPipeline2.Run(builder.WithResourceVersions(otherResourceName, atc.Version{"version": "1"}))
+				scenarioPipeline2.Run(builder.WithResourceVersions(otherResourceName, time.Minute, atc.Version{"version": "1"}))
 
 				_, found, err = otherPipelineResource.FindVersion(atc.Version{"version": "1"})
 				Expect(err).ToNot(HaveOccurred())
@@ -800,7 +800,7 @@ var _ = Describe("Pipeline", func() {
 					{
 						ID:      resource.ID(),
 						Name:    resource.Name(),
-						ScopeID: intptr(resource.ResourceConfigScopeID()),
+						ScopeID: new(resource.ResourceConfigScopeID()),
 					},
 					{
 						ID:      otherResource.ID(),
@@ -810,7 +810,7 @@ var _ = Describe("Pipeline", func() {
 					{
 						ID:      reallyOtherResource.ID(),
 						Name:    reallyOtherResource.Name(),
-						ScopeID: intptr(reallyOtherResource.ResourceConfigScopeID()),
+						ScopeID: new(reallyOtherResource.ResourceConfigScopeID()),
 					},
 				}))
 				Expect(versions.Jobs).To(ConsistOf(jobs))
@@ -851,7 +851,7 @@ var _ = Describe("Pipeline", func() {
 					{
 						ID:      resource.ID(),
 						Name:    resource.Name(),
-						ScopeID: intptr(resource.ResourceConfigScopeID()),
+						ScopeID: new(resource.ResourceConfigScopeID()),
 					},
 					{
 						ID:      otherResource.ID(),
@@ -861,7 +861,7 @@ var _ = Describe("Pipeline", func() {
 					{
 						ID:      reallyOtherResource.ID(),
 						Name:    reallyOtherResource.Name(),
-						ScopeID: intptr(reallyOtherResource.ResourceConfigScopeID()),
+						ScopeID: new(reallyOtherResource.ResourceConfigScopeID()),
 					},
 				}))
 				Expect(versions.Jobs).To(ConsistOf(jobs))
@@ -900,7 +900,7 @@ var _ = Describe("Pipeline", func() {
 					{
 						ID:      resource.ID(),
 						Name:    resource.Name(),
-						ScopeID: intptr(resource.ResourceConfigScopeID()),
+						ScopeID: new(resource.ResourceConfigScopeID()),
 					},
 					{
 						ID:      otherResource.ID(),
@@ -910,7 +910,7 @@ var _ = Describe("Pipeline", func() {
 					{
 						ID:      reallyOtherResource.ID(),
 						Name:    reallyOtherResource.Name(),
-						ScopeID: intptr(reallyOtherResource.ResourceConfigScopeID()),
+						ScopeID: new(reallyOtherResource.ResourceConfigScopeID()),
 					},
 				}))
 				Expect(versions.Jobs).To(ConsistOf(jobs))
@@ -969,17 +969,17 @@ var _ = Describe("Pipeline", func() {
 					{
 						ID:      resource.ID(),
 						Name:    resource.Name(),
-						ScopeID: intptr(resource.ResourceConfigScopeID()),
+						ScopeID: new(resource.ResourceConfigScopeID()),
 					},
 					{
 						ID:      otherResource.ID(),
 						Name:    otherResource.Name(),
-						ScopeID: intptr(otherResource.ResourceConfigScopeID()),
+						ScopeID: new(otherResource.ResourceConfigScopeID()),
 					},
 					{
 						ID:      reallyOtherResource.ID(),
 						Name:    reallyOtherResource.Name(),
-						ScopeID: intptr(reallyOtherResource.ResourceConfigScopeID()),
+						ScopeID: new(reallyOtherResource.ResourceConfigScopeID()),
 					},
 				}))
 				Expect(versions.Jobs).To(ConsistOf(jobs))
@@ -1079,13 +1079,13 @@ var _ = Describe("Pipeline", func() {
 			Expect(resourceVersions).To(HaveLen(0))
 
 			By("including saved versioned resources of the current pipeline")
-			scenarioPipeline1.Run(builder.WithResourceVersions(resourceName, atc.Version{"version": "1"}))
+			scenarioPipeline1.Run(builder.WithResourceVersions(resourceName, time.Minute, atc.Version{"version": "1"}))
 
 			savedVR1, found, err := resource.FindVersion(atc.Version{"version": "1"})
 			Expect(err).ToNot(HaveOccurred())
 			Expect(found).To(BeTrue())
 
-			scenarioPipeline1.Run(builder.WithResourceVersions(resourceName, atc.Version{"version": "2"}))
+			scenarioPipeline1.Run(builder.WithResourceVersions(resourceName, time.Minute, atc.Version{"version": "2"}))
 
 			savedVR2, found, err := resource.FindVersion(atc.Version{"version": "2"})
 			Expect(err).ToNot(HaveOccurred())
@@ -1095,7 +1095,7 @@ var _ = Describe("Pipeline", func() {
 			Expect(savedVR2.Version()).To(Equal(db.Version{"version": "2"}))
 
 			By("not including saved versioned resources of other pipelines")
-			scenarioPipeline2.Run(builder.WithResourceVersions(otherResourceName, atc.Version{"version": "3"}, atc.Version{"version": "4"}, atc.Version{"version": "5"}))
+			scenarioPipeline2.Run(builder.WithResourceVersions(otherResourceName, time.Minute, atc.Version{"version": "3"}, atc.Version{"version": "4"}, atc.Version{"version": "5"}))
 
 			_, found, err = scenarioPipeline2.Resource(otherResourceName).FindVersion(atc.Version{"version": "3"})
 			Expect(err).ToNot(HaveOccurred())
@@ -1151,7 +1151,7 @@ var _ = Describe("Pipeline", func() {
 						},
 					},
 				}),
-				builder.WithResourceVersions("some-resource", atc.Version{"key": "value"}),
+				builder.WithResourceVersions("some-resource", time.Minute, atc.Version{"key": "value"}),
 			)
 
 			By("populating builds")
@@ -1567,7 +1567,7 @@ var _ = Describe("Pipeline", func() {
 						},
 					},
 				}),
-				builder.WithResourceVersions("some-resource", atc.Version{"version": "v1"}),
+				builder.WithResourceVersions("some-resource", time.Minute, atc.Version{"version": "v1"}),
 			)
 
 			build, err := scenario.Job("job-name").CreateBuild(defaultBuildCreatedBy)
@@ -1608,6 +1608,7 @@ var _ = Describe("Pipeline", func() {
 
 			scenario.Run(builder.WithResourceVersions(
 				"some-resource",
+				time.Minute,
 				atc.Version{"version": "v2"},
 				atc.Version{"version": "v3"},
 				atc.Version{"version": "v4"},
@@ -1725,7 +1726,7 @@ var _ = Describe("Pipeline", func() {
 						},
 					},
 				}),
-				builder.WithResourceVersions("some-resource", atc.Version{"version": "v3"}, atc.Version{"version": "v4"}),
+				builder.WithResourceVersions("some-resource", time.Minute, atc.Version{"version": "v3"}, atc.Version{"version": "v4"}),
 			)
 
 			build, err := scenario.Job("job-name").CreateBuild(defaultBuildCreatedBy)
@@ -1957,6 +1958,7 @@ var _ = Describe("Pipeline", func() {
 					},
 				}),
 				builder.WithResourceVersions("some-resource",
+					time.Minute,
 					atc.Version{"version": "1"},
 				),
 			)
@@ -2079,7 +2081,7 @@ var _ = Describe("Pipeline", func() {
 			Context("only to", func() {
 				It("returns only those before and including to", func() {
 					returnedBuilds, _, err := pipeline.BuildsWithTime(db.Page{
-						To:    db.NewIntPtr(int(builds[2].StartTime().Unix())),
+						To:    new(int(builds[2].StartTime().Unix())),
 						Limit: 50,
 					})
 
@@ -2091,7 +2093,7 @@ var _ = Describe("Pipeline", func() {
 			Context("only from", func() {
 				It("returns only those after from", func() {
 					returnedBuilds, _, err := pipeline.BuildsWithTime(db.Page{
-						From:  db.NewIntPtr(int(builds[1].StartTime().Unix())),
+						From:  new(int(builds[1].StartTime().Unix())),
 						Limit: 50,
 					})
 
@@ -2103,8 +2105,8 @@ var _ = Describe("Pipeline", func() {
 			Context("from and to", func() {
 				It("returns only elements in the range", func() {
 					returnedBuilds, _, err := pipeline.BuildsWithTime(db.Page{
-						From:  db.NewIntPtr(int(builds[1].StartTime().Unix())),
-						To:    db.NewIntPtr(int(builds[2].StartTime().Unix())),
+						From:  new(int(builds[1].StartTime().Unix())),
+						To:    new(int(builds[2].StartTime().Unix())),
 						Limit: 50,
 					})
 					Expect(err).NotTo(HaveOccurred())
@@ -2271,8 +2273,100 @@ var _ = Describe("Pipeline", func() {
 			Expect(pipeline.Config()).To(Equal(pipelineConfig))
 		})
 	})
-})
 
-func intptr(i int) *int {
-	return &i
-}
+	Describe("UserData", func() {
+		Context("when pipeline is created with user_data", func() {
+			It("preserves user_data as a map", func() {
+				userData := map[string]any{
+					"organization": "Platform Team",
+					"contact":      "platform@example.com",
+					"labels":       []any{"prod", "critical"},
+				}
+
+				configWithUserData := pipelineConfig
+				configWithUserData.UserData = userData
+
+				pipeline, _, err := team.SavePipeline(atc.PipelineRef{Name: "pipeline-with-userdata"}, configWithUserData, 0, false)
+				Expect(err).ToNot(HaveOccurred())
+
+				config, err := pipeline.Config()
+				Expect(err).ToNot(HaveOccurred())
+				Expect(config.UserData).NotTo(BeNil())
+
+				retrievedUserData, ok := config.UserData.(map[string]any)
+				Expect(ok).To(BeTrue())
+				Expect(retrievedUserData["organization"]).To(Equal("Platform Team"))
+				Expect(retrievedUserData["contact"]).To(Equal("platform@example.com"))
+				Expect(retrievedUserData["labels"]).To(ConsistOf("prod", "critical"))
+			})
+
+			It("preserves user_data as a string", func() {
+				configWithUserData := pipelineConfig
+				configWithUserData.UserData = "simple metadata"
+
+				pipeline, _, err := team.SavePipeline(atc.PipelineRef{Name: "pipeline-with-string-userdata"}, configWithUserData, 0, false)
+				Expect(err).ToNot(HaveOccurred())
+
+				config, err := pipeline.Config()
+				Expect(err).ToNot(HaveOccurred())
+				Expect(config.UserData).To(Equal("simple metadata"))
+			})
+
+			It("preserves user_data as an array", func() {
+				configWithUserData := pipelineConfig
+				configWithUserData.UserData = []any{"tag1", "tag2", "tag3"}
+
+				pipeline, _, err := team.SavePipeline(atc.PipelineRef{Name: "pipeline-with-array-userdata"}, configWithUserData, 0, false)
+				Expect(err).ToNot(HaveOccurred())
+
+				config, err := pipeline.Config()
+				Expect(err).ToNot(HaveOccurred())
+				Expect(config.UserData).NotTo(BeNil())
+
+				retrievedUserData, ok := config.UserData.([]any)
+				Expect(ok).To(BeTrue())
+				Expect(retrievedUserData).To(ConsistOf("tag1", "tag2", "tag3"))
+			})
+		})
+
+		Context("when pipeline is created without user_data", func() {
+			It("returns nil for user_data", func() {
+				pipeline, _, err := team.SavePipeline(atc.PipelineRef{Name: "pipeline-without-userdata"}, pipelineConfig, 0, false)
+				Expect(err).ToNot(HaveOccurred())
+
+				config, err := pipeline.Config()
+				Expect(err).ToNot(HaveOccurred())
+				Expect(config.UserData).To(BeNil())
+			})
+		})
+
+		Context("when updating pipeline user_data", func() {
+			It("replaces user_data with new value", func() {
+				initialUserData := map[string]any{"version": "1.0"}
+				configWithUserData := pipelineConfig
+				configWithUserData.UserData = initialUserData
+
+				pipeline, _, err := team.SavePipeline(atc.PipelineRef{Name: "pipeline-update-userdata"}, configWithUserData, 0, false)
+				Expect(err).ToNot(HaveOccurred())
+
+				// Update with new user_data
+				updatedUserData := map[string]any{
+					"version":    "2.0",
+					"updated_by": "test",
+				}
+				configWithUserData.UserData = updatedUserData
+
+				pipeline, _, err = team.SavePipeline(atc.PipelineRef{Name: "pipeline-update-userdata"}, configWithUserData, pipeline.ConfigVersion(), false)
+				Expect(err).ToNot(HaveOccurred())
+
+				config, err := pipeline.Config()
+				Expect(err).ToNot(HaveOccurred())
+
+				retrievedUserData, ok := config.UserData.(map[string]any)
+				Expect(ok).To(BeTrue())
+				Expect(retrievedUserData["version"]).To(Equal("2.0"))
+				Expect(retrievedUserData["updated_by"]).To(Equal("test"))
+			})
+		})
+	})
+})

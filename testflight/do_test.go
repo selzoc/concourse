@@ -11,7 +11,7 @@ var _ = Describe("A pipeline containing a do", func() {
 		setAndUnpausePipeline("fixtures/do.yml")
 	})
 
-	It("performs the do steps", func() {
+	It("performs the do steps", func(ctx SpecContext) {
 		watch := fly("trigger-job", "-j", inPipeline("do-job"), "-w")
 
 		By("running the first step")
@@ -22,5 +22,5 @@ var _ = Describe("A pipeline containing a do", func() {
 
 		By("running the third step")
 		Expect(watch).To(gbytes.Say("running do step 3"))
-	})
+	}, DefaultSpecTimeout)
 })

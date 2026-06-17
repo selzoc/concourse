@@ -17,7 +17,7 @@ var _ = Describe("fly intercept default shell", func() {
 	const testBash = `[ -n "$BASH_VERSION" ] && echo "yes bash" || echo "no bash"` + "\n"
 
 	Context("when the container has bash", func() {
-		It("defaults to bash", func() {
+		It("defaults to bash", func(ctx SpecContext) {
 			By("triggering the build")
 			wait := spawnFly("trigger-job", "-w", "-j", inPipeline("wait"))
 			Eventually(wait).Should(gbytes.Say("waiting for /tmp/stop-waiting"))
@@ -31,11 +31,11 @@ var _ = Describe("fly intercept default shell", func() {
 			Eventually(session, 10*time.Second).Should(gbytes.Say("yes bash"))
 
 			session.Kill()
-		})
+		}, DefaultSpecTimeout)
 	})
 
 	Context("when the container does not have bash", func() {
-		It("falls back to sh", func() {
+		It("falls back to sh", func(ctx SpecContext) {
 			By("triggering the build")
 			wait := spawnFly("trigger-job", "-w", "-j", inPipeline("wait"))
 			Eventually(wait).Should(gbytes.Say("waiting for /tmp/stop-waiting"))
@@ -53,6 +53,6 @@ var _ = Describe("fly intercept default shell", func() {
 			Eventually(session, 10*time.Second).Should(gbytes.Say("no bash"))
 
 			session.Kill()
-		})
+		}, DefaultSpecTimeout)
 	})
 })

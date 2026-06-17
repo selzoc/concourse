@@ -11,7 +11,7 @@ var _ = Describe("A pipeline containing an across step", func() {
 		setAndUnpausePipeline("fixtures/across.yml")
 	})
 
-	It("performs the across steps", func() {
+	It("performs the across steps", func(ctx SpecContext) {
 		watch := fly("trigger-job", "-j", inPipeline("job"), "-w")
 
 		Expect(watch).To(gbytes.Say("running across static1 dynamic1"))
@@ -31,5 +31,5 @@ var _ = Describe("A pipeline containing an across step", func() {
 		Expect(watch).To(gbytes.Say("fetching version: v_dynamic3"))
 		Expect(watch).To(gbytes.Say("pushing version: v_4"))
 		Expect(watch).To(gbytes.Say("fetching version: v_4"))
-	})
+	}, DefaultSpecTimeout)
 })

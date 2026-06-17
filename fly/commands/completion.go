@@ -23,8 +23,7 @@ complete -F _fly_compl fly
 `
 
 func fishCompletionSnippetHelper(snippet string, prefix string, commandType reflect.Type) string {
-	for i := 0; i < commandType.NumField(); i++ {
-		field := commandType.Field(i)
+	for field := range commandType.Fields() {
 		var tags = field.Tag
 		var template = "complete -c fly"
 

@@ -2,10 +2,13 @@ package k8s_test
 
 import (
 	"encoding/json"
+	"regexp"
+	"strings"
 
 	. "github.com/concourse/concourse/topgun"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/gexec"
 )
 
 var _ = Describe("Kubernetes credential management", func() {
@@ -198,15 +201,14 @@ var _ = Describe("Kubernetes credential management", func() {
 			By("not creating the secret")
 			sess := fly.Start("execute",
 				"-c", "tasks/simple-secret.yml")
-			<-sess.Exited
-			Expect(sess.ExitCode()).NotTo(Equal(0))
+			Eventually(sess).ShouldNot(gexec.Exit(0))
 		})
 	})
 
 })
 
 func deleteSecret(releaseName, team, secretName string) {
-	Run(nil, "kubectl", "--namespace="+releaseName+"-main", "delete", "secret", secretName)
+	Run(nil, "kubectl", "--namespace="+releaseName+"-"+team, "delete", "secret", secretName)
 }
 
 func createCredentialSecret(releaseName, secretName, team string, kv map[string]string) {
@@ -227,8 +229,8 @@ func createCredentialSecret(releaseName, secretName, team string, kv map[string]
 
 func runsBuildWithCredentialsResolved(normalSecret string, specialKeySecret string) {
 	By("creating credentials in k8s credential manager")
-	createCredentialSecret(releaseName, normalSecret, "main", map[string]string{"value": "bar"})
-	createCredentialSecret(releaseName, specialKeySecret, "main", map[string]string{"baz": "zaz"})
+	createCredentialSecret(releaseName, normalSecret, "main", map[string]string{"value": "plainbar"})
+	createCredentialSecret(releaseName, specialKeySecret, "main", map[string]string{"baz": "nestedzaz"})
 
 	fly.Run("set-pipeline", "-n",
 		"-c", "pipelines/minimal-credential-management.yml",
@@ -241,8 +243,13 @@ func runsBuildWithCredentialsResolved(normalSecret string, specialKeySecret stri
 	Wait(session)
 
 	By("seeing the credentials were resolved by concourse")
-	Expect(string(session.Out.Contents())).To(ContainSubstring("bar"))
-	Expect(string(session.Out.Contents())).To(ContainSubstring("zaz"))
+	p1 := extractIDtokenFromBuffer(session.Out.Contents(), "plain1")
+	p2 := extractIDtokenFromBuffer(session.Out.Contents(), "plain2")
+	Expect(p1 + p2).To(Equal("plainbar"))
+
+	n1 := extractIDtokenFromBuffer(session.Out.Contents(), "nested1")
+	n2 := extractIDtokenFromBuffer(session.Out.Contents(), "nested2")
+	Expect(n1 + n2).To(Equal("nestedzaz"))
 }
 
 func runGetsCachedCredentials(secretNameFoo string, secretNameCaz string) {
@@ -251,4 +258,13 @@ func runGetsCachedCredentials(secretNameFoo string, secretNameCaz string) {
 	deleteSecret(releaseName, "main", secretNameCaz)
 	By("seeing that concourse uses the cached credentials")
 	runsBuildWithCredentialsResolved(secretNameFoo, secretNameCaz)
+}
+
+func extractIDtokenFromBuffer(buffer []byte, identifier string) string {
+	tokenMatcher := regexp.MustCompile("(?m)" + identifier + ": (.*)$")
+	tokenMatches := tokenMatcher.FindSubmatch(buffer)
+	if len(tokenMatches) != 2 {
+		return ""
+	}
+	return strings.TrimSuffix(string(tokenMatches[1]), "\r")
 }

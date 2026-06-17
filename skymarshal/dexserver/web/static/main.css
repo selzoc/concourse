@@ -89,6 +89,10 @@ body {
   background-image: url(../static/img/gitlab-icon.svg);
 }
 
+.dex-btn-icon--gitea {
+  background-image: url(../static/img/gitea-icon.svg);
+}
+
 .dex-btn-icon--bitbucket {
   background-image: url(../static/img/bitbucket-icon.svg);
 }

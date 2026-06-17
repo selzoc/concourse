@@ -1,32 +1,43 @@
 var_sources:
-- name: defaultidtoken
-  type: idtoken
-  config:
-    audience: ["sts.amazonaws.com"]
+  - name: defaultidtoken
+    type: idtoken
+    config:
+      audience: ["sts.amazonaws.com"]
 
-- name: customidtoken
-  type: idtoken
-  config:
-    subject_scope: team
-    audience: ["sts.amazonaws.com"]
-    expires_in: 1h
-    algorithm: ES256
+  - name: customidtoken
+    type: idtoken
+    config:
+      subject_scope: team
+      audience: ["sts.amazonaws.com"]
+      expires_in: 1h
+      algorithm: ES256
 
 jobs:
-- name: print-creds
-  plan:
-  - task: print
-    config:
-      platform: linux
+  - name: print-creds
+    plan:
+      - task: print
+        config:
+          platform: linux
 
-      image_resource:
-        type: mock
-        source: {mirror_self: true}
+          image_resource:
+            type: mock
+            source: { mirror_self: true }
 
-      run:
-        path: bash
-        args:
-        - -c
-        - |
-          echo default-token: ((defaultidtoken:token))
-          echo custom-token: ((customidtoken:token))
+          run:
+            path: bash
+            args:
+              - -c
+              - |
+                default_token="((defaultidtoken:token))"
+                dlen=${#default_token}
+                dhalf=$((dlen / 2))
+
+                custom_token="((customidtoken:token))"
+                clen=${#custom_token}
+                chalf=$((clen / 2))
+
+                echo "D1:" ${default_token:0:dhalf}
+                echo "D2:" ${default_token:dhalf}
+
+                echo "C1:" ${custom_token:0:chalf}
+                echo "C2:" ${custom_token:chalf}

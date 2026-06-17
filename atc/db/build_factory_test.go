@@ -600,8 +600,8 @@ var _ = Describe("BuildFactory", func() {
 		It("returns builds started in the given timespan", func() {
 			page := db.Page{
 				Limit:   10,
-				From:    db.NewIntPtr(int(time.Now().Unix() - 10000)),
-				To:      db.NewIntPtr(int(time.Now().Unix() + 10)),
+				From:    new(int(time.Now().Unix() - 10000)),
+				To:      new(int(time.Now().Unix() + 10)),
 				UseDate: true,
 			}
 			builds, _, err := buildFactory.AllBuilds(page)
@@ -613,7 +613,7 @@ var _ = Describe("BuildFactory", func() {
 			It("should return nothing", func() {
 				page := db.Page{
 					Limit:   10,
-					From:    db.NewIntPtr(int(time.Now().Unix() + 10)),
+					From:    new(int(time.Now().Unix() + 10)),
 					UseDate: true,
 				}
 				builds, _, err := buildFactory.AllBuilds(page)
@@ -626,7 +626,7 @@ var _ = Describe("BuildFactory", func() {
 			It("should return nothing", func() {
 				page := db.Page{
 					Limit:   10,
-					To:      db.NewIntPtr(int(time.Now().Unix() - 10000)),
+					To:      new(int(time.Now().Unix() - 10000)),
 					UseDate: true,
 				}
 				builds, _, err := buildFactory.AllBuilds(page)

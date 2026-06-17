@@ -234,17 +234,17 @@ func (m *migrations) Up_1528470872() error {
 		}
 	}
 
-	errorMessage := ""
+	var errorMessage strings.Builder
 	for provider, keys := range mustBeSameAmongstAllTeams {
 		for key, values := range keys {
 			if len(values) > 1 {
-				errorMessage += fmt.Sprintf("Non-unique value of '%s' for auth provider '%s' breaks migration: ", key, provider)
+				errorMessage.WriteString(fmt.Sprintf("Non-unique value of '%s' for auth provider '%s' breaks migration: ", key, provider))
 				offendingTeams := []string{}
 				for value, teams := range values {
 					offendingTeams = append(offendingTeams, fmt.Sprintf("teams %v have value '%s'", teams, value))
 				}
-				errorMessage += strings.Join(offendingTeams, ", ")
-				errorMessage += "\n"
+				errorMessage.WriteString(strings.Join(offendingTeams, ", "))
+				errorMessage.WriteString("\n")
 			}
 		}
 	}
@@ -252,13 +252,13 @@ func (m *migrations) Up_1528470872() error {
 		for key, values := range keys {
 			for value, teams := range values {
 				if len(teams) > 1 {
-					errorMessage += fmt.Sprintf("Multiple teams having the same value, '%s', of '%s' for auth provider '%s' breaks migration. Offending teams: %v\n", value, key, provider, teams)
+					errorMessage.WriteString(fmt.Sprintf("Multiple teams having the same value, '%s', of '%s' for auth provider '%s' breaks migration. Offending teams: %v\n", value, key, provider, teams))
 				}
 			}
 		}
 	}
-	if errorMessage != "" {
-		return fmt.Errorf("problems in your database caused the migration to fail:\n\n%s", errorMessage)
+	if errorMessage.String() != "" {
+		return fmt.Errorf("problems in your database caused the migration to fail:\n\n%s", errorMessage.String())
 	}
 	return nil
 }

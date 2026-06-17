@@ -11,9 +11,9 @@ var _ = Describe("A job with a try step", func() {
 		setAndUnpausePipeline("fixtures/try.yml")
 	})
 
-	It("proceeds through the plan even if the step fails", func() {
+	It("proceeds through the plan even if the step fails", func(ctx SpecContext) {
 		watch := fly("trigger-job", "-j", inPipeline("try-job"), "-w")
 		Expect(watch).To(gbytes.Say("initializing"))
 		Expect(watch).To(gbytes.Say("passing-task succeeded"))
-	})
+	}, DefaultSpecTimeout)
 })

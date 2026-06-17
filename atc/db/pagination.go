@@ -12,7 +12,3 @@ type Pagination struct {
 	Newer *Page
 	Older *Page
 }
-
-func NewIntPtr(i int) *int {
-	return &i
-}

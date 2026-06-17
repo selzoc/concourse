@@ -9,7 +9,7 @@ import (
 )
 
 var _ = Describe("Build Events", func() {
-	It("across steps log errors from sub-steps", func() {
+	It("across steps log errors from sub-steps", func(ctx SpecContext) {
 		setAndUnpausePipeline("fixtures/erroring_pipeline.yml")
 		sess := spawnFly("trigger-job", "-j", inPipeline("across-step"), "-w")
 		wait(sess, true)
@@ -29,5 +29,5 @@ var _ = Describe("Build Events", func() {
 		buildEvents := sess.Out.Contents()
 		errEvents := strings.Count(string(buildEvents), `"event":"error"`)
 		Expect(errEvents).To(Equal(2))
-	})
+	}, DefaultSpecTimeout)
 })

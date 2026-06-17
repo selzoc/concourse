@@ -7,7 +7,7 @@ import (
 )
 
 var _ = Describe("Task caching", func() {
-	It("caches directories in the cache list without caching any non-cached directories", func() {
+	It("caches directories in the cache list without caching any non-cached directories", func(ctx SpecContext) {
 		setAndUnpausePipeline("fixtures/task-caches.yml")
 
 		watch := fly("trigger-job", "-j", inPipeline("simple"), "-w")
@@ -31,5 +31,5 @@ var _ = Describe("Task caching", func() {
 		Expect(watch).NotTo(gbytes.Say("blob-contents-from-first-task"))
 		Expect(watch).NotTo(gbytes.Say(`not-cached-from-first-task\s+not-cached-from-first-task`))
 		Expect(watch).NotTo(gbytes.Say(`not-cached-from-second-task\s+not-cached-from-second-task`))
-	})
+	}, DefaultSpecTimeout)
 })

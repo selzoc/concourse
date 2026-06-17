@@ -8,12 +8,12 @@ import (
 
 var _ = Describe("user lookup", func() {
 	Context("when no username is specified and the image has no /etc/passwd file", func() {
-		It("runs as root", func() {
+		It("runs as root", func(ctx SpecContext) {
 			// clearlinux doesn't have an /etc/passwd file
 			session := fly("execute", "-c", "fixtures/clearlinux.yml")
 			<-session.Exited
 			Expect(session.ExitCode()).To(Equal(0))
 			Expect(session.Out).To(gbytes.Say("running as root"))
-		})
+		}, DefaultSpecTimeout)
 	})
 })

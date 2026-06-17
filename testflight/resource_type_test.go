@@ -22,7 +22,7 @@ var _ = Describe("Configuring a resource type in a pipeline config", func() {
 			setAndUnpausePipeline("fixtures/resource-types.yml", "-v", "hash="+hash)
 		})
 
-		It("can use custom resource types for 'get', 'put', and task 'image_resource's", func() {
+		It("can use custom resource types for 'get', 'put', and task 'image_resource's", func(ctx SpecContext) {
 			watch := fly("trigger-job", "-j", inPipeline("resource-getter"), "-w")
 			Expect(watch).To(gbytes.Say("fetched version: " + hash))
 
@@ -31,14 +31,14 @@ var _ = Describe("Configuring a resource type in a pipeline config", func() {
 
 			watch = fly("trigger-job", "-j", inPipeline("resource-image-resourcer"), "-w")
 			Expect(watch).To(gbytes.Say("MIRRORED_VERSION=image-version"))
-		})
+		}, DefaultSpecTimeout)
 
-		It("can check for resources having a custom type recursively", func() {
+		It("can check for resources having a custom type recursively", func(ctx SpecContext) {
 			checkResource := fly("check-resource", "-r", inPipeline("my-resource"))
 			Expect(checkResource).To(gbytes.Say("my-resource"))
 			Expect(checkResource).To(gbytes.Say("custom-resource-type"))
 			Expect(checkResource).To(gbytes.Say("succeeded"))
-		})
+		}, DefaultSpecTimeout)
 	})
 
 	Context("with custom resource types that have params", func() {
@@ -46,10 +46,10 @@ var _ = Describe("Configuring a resource type in a pipeline config", func() {
 			setAndUnpausePipeline("fixtures/resource-types-with-params.yml", "-v", "hash="+hash)
 		})
 
-		It("can use a custom resource with parameters", func() {
+		It("can use a custom resource with parameters", func(ctx SpecContext) {
 			watch := fly("trigger-job", "-j", inPipeline("resource-test"), "-w")
 			Expect(watch).To(gbytes.Say(hash))
-		})
+		}, DefaultSpecTimeout)
 	})
 
 	Context("when resource type named as base resource type", func() {
@@ -57,10 +57,10 @@ var _ = Describe("Configuring a resource type in a pipeline config", func() {
 			setAndUnpausePipeline("fixtures/resource-type-named-as-base-type.yml", "-v", "hash="+hash)
 		})
 
-		It("can use custom resource type named as base resource type", func() {
+		It("can use custom resource type named as base resource type", func(ctx SpecContext) {
 			watch := fly("trigger-job", "-j", inPipeline("resource-getter"), "-w")
 			Expect(watch).To(gbytes.Say("mirror-" + hash))
-		})
+		}, DefaultSpecTimeout)
 	})
 
 	Context("when resource type has defaults", func() {
@@ -68,7 +68,7 @@ var _ = Describe("Configuring a resource type in a pipeline config", func() {
 			setAndUnpausePipeline("fixtures/resource-type-defaults.yml", "-v", "hash="+hash)
 		})
 
-		It("applies the defaults for check, get, and put steps", func() {
+		It("applies the defaults for check, get, and put steps", func(ctx SpecContext) {
 			getAndPut := fly("trigger-job", "-j", inPipeline("some-job"), "-w")
 			Expect(getAndPut).To(gbytes.Say("defaulted"))
 			Expect(getAndPut).To(gbytes.Say("fetching version: " + hash))
@@ -76,6 +76,6 @@ var _ = Describe("Configuring a resource type in a pipeline config", func() {
 			Expect(getAndPut).To(gbytes.Say("pushing version: put-version"))
 			Expect(getAndPut).To(gbytes.Say("defaulted"))
 			Expect(getAndPut).To(gbytes.Say("fetching version: put-version"))
-		})
+		}, DefaultSpecTimeout)
 	})
 })

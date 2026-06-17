@@ -73,20 +73,20 @@ run:
 		Expect(err).NotTo(HaveOccurred())
 	})
 
-	It("works", func() {
+	It("works", func(ctx SpecContext) {
 		execS := flyIn(tmp, "execute", "-c", "task.yml", "-i", "fixture=./fixture", "-i", "input-1=./input-1", "-i", "input-2=./input-2", "--", "SOME", "ARGS")
 		Expect(execS).To(gbytes.Say("some output"))
 		Expect(execS).To(gbytes.Say("FOO is 1"))
 		Expect(execS).To(gbytes.Say("ARGS are SOME ARGS"))
-	})
+	}, DefaultSpecTimeout)
 
-	It("works in background", func() {
+	It("works in background", func(ctx SpecContext) {
 		execS := flyIn(tmp, "execute", "-c", "task.yml", "-i", "fixture=./fixture", "-i", "input-1=./input-1", "-i", "input-2=./input-2", "--background", "--", "SOME", "ARGS")
 		Eventually(execS).Should(gbytes.Say("executing build"))
-	})
+	}, DefaultSpecTimeout)
 
 	Describe("hijacking", func() {
-		It("executes an interactive command in a running task's container", func() {
+		It("executes an interactive command in a running task's container", func(ctx SpecContext) {
 			err := os.WriteFile(
 				filepath.Join(fixture, "run"),
 				[]byte(`#!/bin/sh
@@ -114,7 +114,7 @@ cat < /tmp/fifo
 
 			Eventually(execS).Should(gbytes.Say("marco"))
 			Eventually(execS).Should(gexec.Exit(0))
-		})
+		}, DefaultSpecTimeout)
 	})
 
 	Describe("uploading inputs with and without --include-ignored", func() {
@@ -164,7 +164,7 @@ cp -a input-2/. output-2/
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("uploads git repo input and non git repo input, IGNORING things in the .gitignore for git repo inputs", func() {
+		It("uploads git repo input and non git repo input, IGNORING things in the .gitignore for git repo inputs", func(ctx SpecContext) {
 			flyIn(tmp, "execute", "-c", "task.yml", "-i", "fixture=./fixture", "-i", "input-1=./input-1", "-i", "input-2=./input-2", "-o", "output-1=./output-1", "-o", "output-2=./output-2")
 
 			fileToBeIgnoredPath := filepath.Join(tmp, "output-1", "expect-not-to.exist")
@@ -178,9 +178,9 @@ cp -a input-2/. output-2/
 			Expect(os.ReadFile(fileToBeIncludedPath)).To(Equal([]byte("included file content")))
 			Expect(os.ReadFile(file1)).To(Equal([]byte("file-1 contents")))
 			Expect(os.ReadFile(file2)).To(Equal([]byte("file-2 contents")))
-		})
+		}, DefaultSpecTimeout)
 
-		It("uploads git repo input and non git repo input, INCLUDING things in the .gitignore for git repo inputs", func() {
+		It("uploads git repo input and non git repo input, INCLUDING things in the .gitignore for git repo inputs", func(ctx SpecContext) {
 			flyIn(tmp, "execute", "--include-ignored", "-c", "task.yml", "-i", "fixture=./fixture", "-i", "input-1=./input-1", "-i", "input-2=./input-2", "-o", "output-1=./output-1", "-o", "output-2=./output-2")
 
 			fileToBeIgnoredPath := filepath.Join(tmp, "output-1", "expect-not-to.exist")
@@ -192,11 +192,11 @@ cp -a input-2/. output-2/
 			Expect(os.ReadFile(fileToBeIncludedPath)).To(Equal([]byte("included file content")))
 			Expect(os.ReadFile(file1)).To(Equal([]byte("file-1 contents")))
 			Expect(os.ReadFile(file2)).To(Equal([]byte("file-2 contents")))
-		})
+		}, DefaultSpecTimeout)
 	})
 
 	Describe("pulling down outputs", func() {
-		It("works", func() {
+		It("works", func(ctx SpecContext) {
 			err := os.WriteFile(
 				filepath.Join(fixture, "run"),
 				[]byte(`#!/bin/sh
@@ -214,11 +214,11 @@ echo world > output-2/file-2
 
 			Expect(os.ReadFile(file1)).To(Equal([]byte("hello\n")))
 			Expect(os.ReadFile(file2)).To(Equal([]byte("world\n")))
-		})
+		}, DefaultSpecTimeout)
 	})
 
 	Describe("aborting", func() {
-		It("terminates the running task", func() {
+		It("terminates the running task", func(ctx SpecContext) {
 			err := os.WriteFile(
 				filepath.Join(fixture, "run"),
 				[]byte(`#!/bin/sh
@@ -242,11 +242,11 @@ wait
 
 			// build should have been aborted
 			Eventually(execS).Should(gexec.Exit(3))
-		})
+		}, DefaultSpecTimeout)
 	})
 
 	Context("when an optional input is not provided", func() {
-		It("runs the task without error", func() {
+		It("runs the task without error", func(ctx SpecContext) {
 			err := os.WriteFile(
 				filepath.Join(fixture, "run"),
 				[]byte(`#!/bin/sh
@@ -261,7 +261,7 @@ ls`),
 			Expect(fileList).To(ContainSubstring("fixture"))
 			Expect(fileList).To(ContainSubstring("input-1"))
 			Expect(fileList).NotTo(ContainSubstring("input-2"))
-		})
+		}, DefaultSpecTimeout)
 	})
 
 	Context("when execute with -j inputs-from", func() {
@@ -291,7 +291,7 @@ run:
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("runs the task without error", func() {
+		It("runs the task without error", func(ctx SpecContext) {
 			By("having an initial version")
 			fly("check-resource", "-r", pipelineName+"/some-resource", "-f", "version:first-version")
 
@@ -321,7 +321,7 @@ run:
 			By("now executing using the second version via -j")
 			execS = flyIn(tmp, "execute", "-c", "task.yml", "-j", pipelineName+"/downstream-job")
 			Expect(execS).To(gbytes.Say("second-version"))
-		})
+		}, DefaultSpecTimeout)
 	})
 
 	Context("when execute with -j inputs-from and task has input mapping", func() {
@@ -354,7 +354,7 @@ run:
 			fly("unpause-pipeline", "-p", pipelineName)
 		})
 
-		It("runs the task without error", func() {
+		It("runs the task without error", func(ctx SpecContext) {
 			By("having an initial version")
 			fly("check-resource", "-r", pipelineName+"/some-resource", "-f", "version:first-version")
 
@@ -384,7 +384,7 @@ run:
 			By("now executing using the second version via -j")
 			execS = flyIn(tmp, "execute", "-c", "task.yml", "-j", pipelineName+"/downstream-job", "-m", "mapped-resource=some-resource")
 			Expect(execS).To(gbytes.Say("second-version"))
-		})
+		}, DefaultSpecTimeout)
 	})
 
 	Context("when execute with -j inputs-from and task has no image_resource specified", func() {
@@ -413,7 +413,7 @@ run:
 			fly("unpause-pipeline", "-p", pipelineName)
 		})
 
-		It("runs the task without error", func() {
+		It("runs the task without error", func(ctx SpecContext) {
 			By("having an initial version")
 			fly("check-resource", "-r", pipelineName+"/some-resource", "-f", "version:first-version")
 
@@ -443,7 +443,7 @@ run:
 			By("now executing using the second version via -j")
 			execS = flyIn(tmp, "execute", "-c", "task.yml", "-j", pipelineName+"/downstream-job", "--image", "some-image")
 			Expect(execS).To(gbytes.Say("second-version"))
-		})
+		}, DefaultSpecTimeout)
 	})
 
 	Context("when the input is custom resource", func() {
@@ -478,10 +478,10 @@ run:
 				fly("trigger-job", "-w", "-j", pipelineName+"/input-test")
 			})
 
-			It("runs the task without error by infer the pipeline resource types from -j", func() {
+			It("runs the task without error by infer the pipeline resource types from -j", func(ctx SpecContext) {
 				execS := flyIn(tmp, "execute", "-c", "task.yml", "-j", pipelineName+"/input-test")
 				Expect(execS).To(gbytes.Say("custom-type-version"))
-			})
+			}, DefaultSpecTimeout)
 		})
 
 		Context("when -j is not specified and local input in custom resource type is provided", func() {
@@ -496,10 +496,10 @@ echo hello from fixture
 				Expect(err).NotTo(HaveOccurred())
 			})
 
-			It("runs the task without error", func() {
+			It("runs the task without error", func(ctx SpecContext) {
 				execS := flyIn(tmp, "execute", "-c", "task.yml", "-i", "some-resource=./fixture")
 				Expect(execS).To(gbytes.Say("hello from fixture"))
-			})
+			}, DefaultSpecTimeout)
 		})
 	})
 })

@@ -21,15 +21,15 @@ var _ = Describe("A resource pinned with a version during initial set of the pip
 			)
 		})
 
-		It("should be able to check the resource", func() {
+		It("should be able to check the resource", func(ctx SpecContext) {
 			check := fly("check-resource", "-r", inPipeline("some-resource"))
 			Expect(check).To(gbytes.Say("some-resource"))
 			Expect(check).To(gbytes.Say("succeeded"))
-		})
+		}, DefaultSpecTimeout)
 
-		It("should be able to run a job with the pinned version", func() {
+		It("should be able to run a job with the pinned version", func(ctx SpecContext) {
 			watch := fly("trigger-job", "-j", inPipeline("some-passing-job"), "-w")
 			Expect(watch).To(gbytes.Say("v1"))
-		})
+		}, DefaultSpecTimeout)
 	})
 })

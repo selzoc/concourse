@@ -289,6 +289,63 @@ var _ = Describe("ResourceType", func() {
 			})
 		})
 
+		Context("when a resource and resource type have the same Type and Source", func() {
+			BeforeEach(func() {
+				var (
+					created bool
+					err     error
+				)
+
+				pipeline, created, err = defaultTeam.SavePipeline(
+					atc.PipelineRef{Name: "pipeline-with-types"},
+					atc.Config{
+						Resources: atc.ResourceConfigs{
+							{
+								Name:   "some-resource",
+								Type:   "some-base-resource-type",
+								Source: atc.Source{"some": "repository"},
+							},
+						},
+						ResourceTypes: atc.ResourceTypes{
+							{
+								Name:   "some-type",
+								Type:   "some-base-resource-type",
+								Source: atc.Source{"some": "repository"},
+							},
+						},
+					},
+					pipeline.ConfigVersion(),
+					false,
+				)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(created).To(BeFalse())
+
+				resourceType, found, err := pipeline.ResourceType("some-type")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(found).To(BeTrue())
+
+				resource, found, err := pipeline.Resource("some-resource")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(found).To(BeTrue())
+
+				resourceConfig, err := resourceConfigFactory.FindOrCreateResourceConfig("some-base-resource-type", atc.Source{"some": "repository"}, nil)
+				Expect(err).ToNot(HaveOccurred())
+
+				typeScope, err := resourceConfig.FindOrCreateScope(nil)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(resourceType.SetResourceConfigScope(typeScope)).To(Succeed())
+
+				resourceScope, err := resourceConfig.FindOrCreateScope(new(resource.ID()))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(resource.SetResourceConfigScope(resourceScope)).To(Succeed())
+			})
+
+			It("does not return duplicate resource types", func() {
+				Expect(resourceTypes).To(HaveLen(1))
+				Expect(resourceTypes[0].Name()).To(Equal("some-type"))
+			})
+		})
+
 		Context("Deserialize", func() {
 			var rts atc.ResourceTypes
 			JustBeforeEach(func() {
@@ -1096,11 +1153,14 @@ var _ = Describe("ResourceType", func() {
 			})
 		})
 
-		Context("with global resources, when there are multiple resource types sharing the same version history", func() {
+		Context("with global resources, when there are multiple resource types sharing the same version history", Serial, func() {
 			var someOtherResourceType db.ResourceType
 
 			BeforeEach(func() {
 				atc.EnableGlobalResources = true
+				DeferCleanup(func() {
+					atc.EnableGlobalResources = false
+				})
 
 				scenario = dbtest.Setup(
 					builder.WithPipeline(atc.Config{

@@ -12,7 +12,7 @@ var _ = Describe("Resource caching", func() {
 		setAndUnpausePipeline("fixtures/caching.yml")
 	})
 
-	It("does not fetch if there is nothing new", func() {
+	It("does not fetch if there is nothing new", func(ctx SpecContext) {
 		someResourceV1 := newMockVersion("some-resource", "some1")
 		cachedResourceV1 := newMockVersion("cached-resource", "cached1")
 
@@ -31,5 +31,5 @@ var _ = Describe("Resource caching", func() {
 		Expect(watch).NotTo(gbytes.Say("fetching"))
 		Expect(watch).To(gbytes.Say("succeeded"))
 		Expect(watch).To(gexec.Exit(0))
-	})
+	}, DefaultSpecTimeout)
 })

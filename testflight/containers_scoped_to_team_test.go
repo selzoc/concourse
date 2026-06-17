@@ -11,7 +11,7 @@ var _ = Describe("Intercepting containers", func() {
 		setAndUnpausePipeline("fixtures/wait-for-intercept.yml")
 	})
 
-	It("is limited to the team that owns the containers", func() {
+	It("is limited to the team that owns the containers", func(ctx SpecContext) {
 		By("triggering the build")
 		wait := spawnFly("trigger-job", "-w", "-j", inPipeline("wait"))
 		Eventually(wait).Should(gbytes.Say("waiting for /tmp/stop-waiting"))
@@ -40,5 +40,5 @@ var _ = Describe("Intercepting containers", func() {
 
 		<-wait.Exited
 		Expect(wait).To(gbytes.Say("done"))
-	})
+	}, DefaultSpecTimeout)
 })

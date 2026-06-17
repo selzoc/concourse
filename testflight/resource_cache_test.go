@@ -8,7 +8,7 @@ import (
 )
 
 var _ = Describe("Resource caching", func() {
-	It("takes params into account when determining a cache hit", func() {
+	It("takes params into account when determining a cache hit", func(ctx SpecContext) {
 		guid, err := uuid.NewRandom()
 		Expect(err).ToNot(HaveOccurred())
 
@@ -25,5 +25,5 @@ var _ = Describe("Resource caching", func() {
 
 		watch = fly("trigger-job", "-j", inPipeline("with-params"), "-w")
 		Expect(watch).To(gbytes.Say("fetching.*" + guid.String()))
-	})
+	}, DefaultSpecTimeout)
 })

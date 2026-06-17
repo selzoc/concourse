@@ -128,7 +128,7 @@ var _ = Describe("Pipelines API", func() {
 
 				Context("get ssm manager info", func() {
 					BeforeEach(func() {
-						mockService.GetParameterReturns(nil, &ssmtypes.ParameterNotFound{Message: ptr("dontcare")})
+						mockService.GetParameterReturns(nil, &ssmtypes.ParameterNotFound{Message: new("dontcare")})
 					})
 
 					It("includes the ssm health info in json response", func() {
@@ -429,7 +429,7 @@ var _ = Describe("Pipelines API", func() {
 
 				Context("get secretsmanager info", func() {
 					BeforeEach(func() {
-						mockService.GetSecretValueReturns(nil, &secretsmanagertypes.ResourceNotFoundException{Message: ptr("dontcare")})
+						mockService.GetSecretValueReturns(nil, &secretsmanagertypes.ResourceNotFoundException{Message: new("dontcare")})
 					})
 
 					It("include sthe secretsmanager info in json response", func() {
@@ -454,7 +454,3 @@ var _ = Describe("Pipelines API", func() {
 		})
 	})
 })
-
-func ptr[T any](v T) *T {
-	return &v
-}

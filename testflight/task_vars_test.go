@@ -82,30 +82,30 @@ run:
 		})
 
 		Context("when required vars are passed from the pipeline", func() {
-			It("successfully runs pipeline job with external task", func() {
+			It("successfully runs pipeline job with external task", func(ctx SpecContext) {
 				execS := fly("trigger-job", "-w", "-j", pipelineName+"/external-task-success")
 				Expect(execS).To(gbytes.Say("Hello World"))
-			})
+			}, DefaultSpecTimeout)
 		})
 
 		Context("when not all required vars are passed from the pipeline", func() {
-			It("fails pipeline job with external task due to an uninterpolated variable", func() {
+			It("fails pipeline job with external task due to an uninterpolated variable", func(ctx SpecContext) {
 				execS := spawnFly("trigger-job", "-w", "-j", pipelineName+"/external-task-failure")
 				<-execS.Exited
 				Expect(execS).To(gexec.Exit(2))
 				Expect(execS.Out).To(gbytes.Say("undefined vars: echo_text"))
-			})
+			}, DefaultSpecTimeout)
 		})
 
 		Context("when required vars are passed from command line using -v", func() {
-			It("successfully runs external task via fly execute", func() {
+			It("successfully runs external task via fly execute", func(ctx SpecContext) {
 				execS := flyIn(fixture, "execute", "-c", "task.yml", "-v", "image_resource_type=mock", "-v", "echo_text=Hello World From Command Line")
 				Expect(execS).To(gbytes.Say("Hello World From Command Line"))
-			})
+			}, DefaultSpecTimeout)
 		})
 
 		Context("when required vars are passed from command line using -v", func() {
-			It("successfully runs external task via fly execute", func() {
+			It("successfully runs external task via fly execute", func(ctx SpecContext) {
 				varsContents := `
 image_resource_type: mock
 echo_text: Hello World From Command Line
@@ -118,23 +118,23 @@ echo_text: Hello World From Command Line
 				Expect(err).NotTo(HaveOccurred())
 				execS := flyIn(fixture, "execute", "-c", "task.yml", "-l", "vars.yml")
 				Expect(execS).To(gbytes.Say("Hello World From Command Line"))
-			})
+			}, DefaultSpecTimeout)
 		})
 
 		Context("when not all required vars are passed from command line", func() {
-			It("fails external task via fly execute due to an uninterpolated variable", func() {
+			It("fails external task via fly execute due to an uninterpolated variable", func(ctx SpecContext) {
 				execS := spawnFlyIn(fixture, "execute", "-c", "task.yml", "-v", "image_resource_type=mock")
 				<-execS.Exited
 				Expect(execS).To(gexec.Exit(2))
 				Expect(execS.Out).To(gbytes.Say("undefined vars: echo_text"))
-			})
+			}, DefaultSpecTimeout)
 		})
 
 		Context("when vars are from load_var", func() {
-			It("successfully runs pipeline job with external task", func() {
+			It("successfully runs pipeline job with external task", func(ctx SpecContext) {
 				execS := fly("trigger-job", "-w", "-j", pipelineName+"/external-task-vars-from-load-var")
 				Expect(execS).To(gbytes.Say("bar"))
-			})
+			}, DefaultSpecTimeout)
 		})
 
 		Context("when task vars are not used, task should get vars from var_sources", func() {
@@ -147,14 +147,21 @@ image_resource:
   source: {mirror_self: true}
 
 run:
-  path: echo
-  args: [((vs:echo_text))]
+  path: sh
+  args:
+  - -c
+  - |
+    text="((vs:echo_text))"
+    echo ${text:0:9}
+    echo ${text:9:20}
 `
 			})
-			It("successfully runs pipeline job with external task", func() {
+			It("successfully runs pipeline job with external task", func(ctx SpecContext) {
 				execS := fly("trigger-job", "-w", "-j", pipelineName+"/task-var-is-defined-but-task-also-needs-vars-from-var-sources")
-				Expect(execS).To(gbytes.Say("text-from-var-source"))
-			})
+				Expect(execS).To(gbytes.Say("((redacted))"), "((vs:echo_test)) should be redacted and not leak")
+				Expect(execS).To(gbytes.Say("text-from"))
+				Expect(execS).To(gbytes.Say("-var-source"))
+			}, DefaultSpecTimeout)
 		})
 	})
 

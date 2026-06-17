@@ -120,7 +120,9 @@ var latestCompletedBuildQuery = psql.Select("max(id)").
 type Build interface {
 	PipelineRef
 
+	// The globally unique ID of the build
 	ID() int
+	// The job-scoped build number
 	Name() string
 
 	RunStateID() string
@@ -170,7 +172,18 @@ type Build interface {
 
 	Reload() (bool, error)
 
+	// Returns true if all inputs to the job have been checked after the build
+	// was created. Does not check resources that have passed constraints or are
+	// pinned because checking these inputs will not change the list of possible
+	// input versions.
 	ResourcesChecked() (bool, error)
+
+	// Returns true if all inputs that are not triggers to the job have been
+	// checked after the build was created or have not exceeded their check
+	// interval. Does not check resources that have passed constraints or are
+	// pinned because checking these inputs will not change the list of possible
+	// input versions.
+	NonTriggeringResourcesChecked() (bool, error)
 
 	AcquireTrackingLock(logger lager.Logger, interval time.Duration) (lock.Lock, bool, error)
 
@@ -221,6 +234,8 @@ type Build interface {
 
 	OnCheckBuildStart() error
 }
+
+var _ Build = (*build)(nil)
 
 type build struct {
 	pipelineRef
@@ -510,9 +525,32 @@ func (b *build) ResourcesChecked() (bool, error) {
 			SELECT 1
 			FROM resources r
 			JOIN job_inputs ji ON ji.resource_id = r.id
+			LEFT JOIN resource_config_scopes rs ON r.resource_config_scope_id = rs.id
+			WHERE ji.job_id = $1 AND ji.passed_job_id IS NULL
+			AND (rs.last_check_end_time < $2 OR rs.id IS NULL)
+			AND NOT EXISTS (
+				SELECT
+				FROM resource_pins
+				WHERE resource_id = r.id
+			)
+		)`, b.jobID, b.createTime).Scan(&notChecked)
+	if err != nil {
+		return false, err
+	}
+
+	return !notChecked, nil
+}
+
+func (b *build) NonTriggeringResourcesChecked() (bool, error) {
+	var notChecked bool
+	err := b.conn.QueryRow(`
+		SELECT EXISTS (
+			SELECT 1
+			FROM resources r
+			JOIN job_inputs ji ON ji.resource_id = r.id
 			JOIN resource_config_scopes rs ON r.resource_config_scope_id = rs.id
-			WHERE ji.job_id = $1
-			AND rs.last_check_end_time < $2
+			WHERE ji.job_id = $1 AND ji.passed_job_id IS NULL AND ji.trigger = false
+			AND rs.next_check_time < $2
 			AND NOT EXISTS (
 				SELECT
 				FROM resource_pins
@@ -1294,7 +1332,7 @@ func (b *build) SaveOutput(
 		return err
 	}
 
-	resourceConfigScope, err := findOrCreateResourceConfigScope(tx, b.conn, b.lockFactory, rc, NewIntPtr(theResource.ID()))
+	resourceConfigScope, err := findOrCreateResourceConfigScope(tx, b.conn, b.lockFactory, rc, new(theResource.ID()))
 	if err != nil {
 		return err
 	}
@@ -1422,7 +1460,7 @@ func (b *build) AdoptInputsAndPipes() ([]BuildInput, bool, error) {
 		}
 	}
 
-	buildInputs := []BuildInput{}
+	buildInputs := make([]BuildInput, 0, len(inputs))
 
 	for inputName, input := range inputs {
 		var versionBlob string

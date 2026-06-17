@@ -12,7 +12,7 @@ var _ = Describe("A pipeline containing jobs with hooks", func() {
 		setAndUnpausePipeline("fixtures/hooks.yml")
 	})
 
-	It("performs hooks under the right conditions", func() {
+	It("performs hooks under the right conditions", func(ctx SpecContext) {
 		By("performing ensure and on_success outputs on success")
 		watch := spawnFly("trigger-job", "-j", inPipeline("some-passing-job"), "-w")
 		<-watch.Exited
@@ -76,5 +76,5 @@ var _ = Describe("A pipeline containing jobs with hooks", func() {
 		Expect(watch.Out.Contents()).NotTo(ContainSubstring("errored job on job failure"))
 		Expect(watch.Out.Contents()).NotTo(ContainSubstring("errored job on abort"))
 		Expect(watch.Out.Contents()).NotTo(ContainSubstring("errored job on job abort"))
-	})
+	}, DefaultSpecTimeout)
 })

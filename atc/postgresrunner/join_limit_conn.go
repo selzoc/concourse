@@ -41,30 +41,30 @@ func ExtractQueries(query string) []string {
 	var recurse func(int) int
 	recurse = func(i int) int {
 		start := i
-		curQuery := ""
+		var curQuery strings.Builder
 		for i < len(query) {
 			if query[i] == ')' {
 				break
 			}
 			if query[i] == '(' {
-				curQuery += query[start:i] + "(...)"
+				curQuery.WriteString(query[start:i] + "(...)")
 				start = recurse(i+1) + 1
 				i = start
 			}
 			i += 1
 		}
 		if start < len(query) {
-			curQuery += query[start:i]
+			curQuery.WriteString(query[start:i])
 		}
 		j := 0
-		for j < len(curQuery) {
-			unionIndex := strings.Index(strings.ToUpper(curQuery[j:]), "UNION")
+		for j < len(curQuery.String()) {
+			unionIndex := strings.Index(strings.ToUpper(curQuery.String()[j:]), "UNION")
 			if unionIndex < 0 {
-				unionIndex = len(curQuery)
+				unionIndex = len(curQuery.String())
 			} else {
 				unionIndex += j
 			}
-			queries = append(queries, strings.TrimSpace(curQuery[j:unionIndex]))
+			queries = append(queries, strings.TrimSpace(curQuery.String()[j:unionIndex]))
 			j = unionIndex + 5
 		}
 		return i
