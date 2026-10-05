@@ -3,7 +3,7 @@ package workercmd_test
 import (
 	"testing"
 
-	"github.com/concourse/concourse/worker/workercmd"
+	"github.com/concourse/concourse/v8/worker/workercmd"
 )
 
 func TestWorkerConfig_P2PStreamingGroup(t *testing.T) {

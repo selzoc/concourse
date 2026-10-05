@@ -136,6 +136,7 @@ func (worker *worker) Tags() []string                          { return worker.t
 func (worker *worker) TeamID() int                             { return worker.teamID }
 func (worker *worker) TeamName() string                        { return worker.teamName }
 func (worker *worker) Ephemeral() bool                         { return worker.ephemeral }
+func (worker *worker) P2PStreamingGroup() string               { return worker.p2pStreamingGroup }
 func (worker *worker) MaxActiveTasks() int                     { return worker.maxActiveTasks }
 
 func (worker *worker) StartTime() time.Time { return worker.startTime }

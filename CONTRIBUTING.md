@@ -255,6 +255,37 @@ $ echo 'replace github.com/concourse/dex => github.com/your-user/dex v0.0.0-2021
 $ docker compose up --build -d
 ```
 
+### Trying P2P streaming groups
+
+Enable direct volume streaming on the web node with
+`CONCOURSE_ENABLE_P2P_VOLUME_STREAMING=true`, then assign each worker a group
+with `CONCOURSE_P2P_STREAMING_GROUP` (or `concourse worker
+--p2p-streaming-group`). Workers with identical, case-sensitive group names can
+stream directly to each other. Workers with different groups stream through
+the ATC. Two workers with no group retain the existing P2P behavior; a grouped
+worker and an ungrouped worker stream through the ATC. Disabling P2P on the web
+node sends all transfers through the ATC, regardless of groups.
+
+Workers in each group must be able to reach each other's baggageclaim addresses.
+Groups describe connectivity; they do not change worker placement or team
+isolation. Inspect assignments with `fly workers --details` or the workers API.
+
+To validate the feature using the development image and Docker Compose:
+
+```sh
+docker compose build
+go test ./integration/worker -run '^TestP2PStreamingGroups$' -count=1 -timeout=15m
+```
+
+The test creates isolated Compose deployments with two tagged workers and runs
+`integration/worker/pipelines/p2p_streaming_groups.yml`. It checks worker group
+registration, transfers a task output containing random bytes, verifies its
+checksum on the destination, and checks worker logs to distinguish successful
+P2P transfers from ATC transfers. It covers matching groups, different groups,
+two ungrouped workers, both grouped/ungrouped directions, and disabled P2P. Each
+deployment is removed when its test finishes; failed deployment logs are saved
+under `integration/worker/logs/`.
+
 ### Working on the web UI
 
 Concourse is written in Go, but the web UI is written in
