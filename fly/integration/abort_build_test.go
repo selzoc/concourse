@@ -12,7 +12,7 @@ import (
 	"github.com/onsi/gomega/gexec"
 	"github.com/onsi/gomega/ghttp"
 
-	"github.com/concourse/concourse/atc"
+	"github.com/concourse/concourse/v8/atc"
 )
 
 var _ = Describe("abort-build", func() {
@@ -54,6 +54,39 @@ var _ = Describe("abort-build", func() {
 					Eventually(sess).Should(gexec.Exit(0))
 
 					Expect(sess.Out).To(gbytes.Say("build successfully aborted"))
+				}).To(Change(func() int {
+					return len(atcServer.ReceivedRequests())
+				}).By(3))
+			})
+		})
+
+		Context("and the --force flag is specified", func() {
+			BeforeEach(func() {
+				expectedURL := "/api/v1/builds/23"
+
+				atcServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("GET", expectedURL),
+						ghttp.RespondWithJSONEncoded(http.StatusOK, expectedBuild),
+					),
+
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("PUT", expectedAbortURL, "force="),
+						ghttp.RespondWith(http.StatusNoContent, ""),
+					),
+				)
+			})
+
+			It("aborts the build with the force query param", func() {
+				Expect(func() {
+					flyCmd := exec.Command(flyPath, "-t", targetName, "abort-build", "-b", "23", "--force")
+
+					sess, err := gexec.Start(flyCmd, GinkgoWriter, GinkgoWriter)
+					Expect(err).NotTo(HaveOccurred())
+
+					Eventually(sess).Should(gexec.Exit(0))
+
+					Expect(sess.Out).To(gbytes.Say("build forcefully aborted"))
 				}).To(Change(func() int {
 					return len(atcServer.ReceivedRequests())
 				}).By(3))

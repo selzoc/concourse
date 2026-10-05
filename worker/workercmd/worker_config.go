@@ -3,7 +3,7 @@ package workercmd
 import (
 	"time"
 
-	"github.com/concourse/concourse/atc"
+	"github.com/concourse/concourse/v8/atc"
 )
 
 type WorkerConfig struct {
@@ -17,7 +17,9 @@ type WorkerConfig struct {
 
 	Ephemeral bool `long:"ephemeral" description:"If set, the worker will be immediately removed upon stalling."`
 
-	P2PStreamingGroup string `long:"p2p-streaming-group" description:"Assign this worker to a P2P streaming group. Workers in the same group stream volumes directly to each other. Workers in different groups (or with no group set) stream through the ATC."`
+	P2PStreamingGroup string `long:"p2p-streaming-group" description:"Assign this worker to a P2P streaming group. When P2P streaming is enabled, workers with identical groups (including two workers with no group) stream directly to each other. Workers with different groups stream through the ATC."`
+
+	MaxActiveTasks int `long:"max-active-tasks" description:"If set, when the worker registers with the web node(s) it will specify this value as the max number of active tasks that can be assigned to it, overriding the web's --max-active-tasks-per-worker for THIS worker. Web nodes must be using the limit-active-tasks placement strategy for this to have any effect."`
 
 	Version string `long:"version" hidden:"true" description:"Version of the worker. This is normally baked in to the binary, so this flag is hidden."`
 }
@@ -33,6 +35,7 @@ func (c WorkerConfig) Worker() atc.Worker {
 		HTTPSProxyURL:     c.HTTPSProxy,
 		NoProxy:           c.NoProxy,
 		Ephemeral:         c.Ephemeral,
+		MaxActiveTasks:    c.MaxActiveTasks,
 		P2PStreamingGroup: c.P2PStreamingGroup,
 	}
 }

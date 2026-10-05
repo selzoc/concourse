@@ -3824,6 +3824,7 @@ pressEnterKey =
                 , shiftKey = False
                 , metaKey = False
                 , code = Keyboard.Enter
+                , key = "Enter"
                 }
         )
 
@@ -3839,6 +3840,7 @@ pressControlEnter =
                 , shiftKey = False
                 , metaKey = False
                 , code = Keyboard.Enter
+                , key = "Enter"
                 }
         )
 
@@ -3854,6 +3856,7 @@ pressMetaEnter =
                 , shiftKey = False
                 , metaKey = True
                 , code = Keyboard.Enter
+                , key = "Enter"
                 }
         )
 
@@ -4070,4 +4073,5 @@ session =
     , screenSize = ScreenSize.Desktop
     , timeZone = Time.utc
     , route = Routes.Resource { id = Data.resourceId, page = Nothing, version = Nothing, groups = [] }
+    , hideUI = False
     }

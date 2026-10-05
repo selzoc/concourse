@@ -6,17 +6,19 @@ import (
 
 	"code.cloudfoundry.org/lager/v3"
 	"code.cloudfoundry.org/lager/v3/lagerctx"
-	"github.com/concourse/concourse/atc/db"
-	"github.com/concourse/concourse/atc/metric"
+	"github.com/concourse/concourse/v8/atc/db"
+	"github.com/concourse/concourse/v8/atc/metric"
 )
 
 type workerCollector struct {
 	workerLifecycle db.WorkerLifecycle
+	stallTimeout    time.Duration
 }
 
-func NewWorkerCollector(workerLifecycle db.WorkerLifecycle) *workerCollector {
+func NewWorkerCollector(workerLifecycle db.WorkerLifecycle, stallTimeout time.Duration) *workerCollector {
 	return &workerCollector{
 		workerLifecycle: workerLifecycle,
+		stallTimeout:    stallTimeout,
 	}
 }
 
@@ -51,6 +53,18 @@ func (wc *workerCollector) Run(ctx context.Context) error {
 
 	if len(affected) > 0 {
 		logger.Info("marked-workers-as-stalled", lager.Data{"count": len(affected), "workers": affected})
+	}
+
+	if wc.stallTimeout > 0 {
+		affected, err = wc.workerLifecycle.DeleteStalledWorkers(wc.stallTimeout)
+		if err != nil {
+			logger.Error("failed-to-delete-stalled-workers", err)
+			return err
+		}
+
+		if len(affected) > 0 {
+			logger.Info("stalled-workers-removed", lager.Data{"count": len(affected), "workers": affected})
+		}
 	}
 
 	affected, err = wc.workerLifecycle.DeleteFinishedRetiringWorkers()

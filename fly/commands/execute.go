@@ -10,17 +10,17 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/concourse/concourse/atc"
-	"github.com/concourse/concourse/fly/commands/internal/displayhelpers"
-	"github.com/concourse/concourse/fly/commands/internal/executehelpers"
-	"github.com/concourse/concourse/fly/commands/internal/flaghelpers"
-	"github.com/concourse/concourse/fly/commands/internal/templatehelpers"
-	"github.com/concourse/concourse/fly/config"
-	"github.com/concourse/concourse/fly/eventstream"
-	"github.com/concourse/concourse/fly/rc"
-	"github.com/concourse/concourse/fly/ui"
-	"github.com/concourse/concourse/fly/ui/progress"
-	"github.com/concourse/concourse/go-concourse/concourse"
+	"github.com/concourse/concourse/v8/atc"
+	"github.com/concourse/concourse/v8/fly/commands/internal/displayhelpers"
+	"github.com/concourse/concourse/v8/fly/commands/internal/executehelpers"
+	"github.com/concourse/concourse/v8/fly/commands/internal/flaghelpers"
+	"github.com/concourse/concourse/v8/fly/commands/internal/templatehelpers"
+	"github.com/concourse/concourse/v8/fly/config"
+	"github.com/concourse/concourse/v8/fly/eventstream"
+	"github.com/concourse/concourse/v8/fly/rc"
+	"github.com/concourse/concourse/v8/fly/ui"
+	"github.com/concourse/concourse/v8/fly/ui/progress"
+	"github.com/concourse/concourse/v8/go-concourse/concourse"
 	"github.com/vbauerster/mpb/v8"
 )
 
@@ -232,7 +232,7 @@ func abortOnSignal(
 
 	fmt.Fprintf(ui.Stderr, "\naborting...\n")
 
-	err := client.AbortBuild(strconv.Itoa(build.ID))
+	err := client.AbortBuild(strconv.Itoa(build.ID), false)
 	if err != nil {
 		fmt.Fprintln(ui.Stderr, "failed to abort:", err)
 		os.Exit(2)

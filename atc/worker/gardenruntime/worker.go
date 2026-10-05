@@ -15,14 +15,14 @@ import (
 	"code.cloudfoundry.org/garden"
 	"code.cloudfoundry.org/lager/v3"
 	"code.cloudfoundry.org/lager/v3/lagerctx"
-	"github.com/concourse/concourse/atc"
-	"github.com/concourse/concourse/atc/db"
-	"github.com/concourse/concourse/atc/db/lock"
-	"github.com/concourse/concourse/atc/metric"
-	"github.com/concourse/concourse/atc/runtime"
-	"github.com/concourse/concourse/atc/worker/gardenruntime/gclient"
-	"github.com/concourse/concourse/tracing"
-	"github.com/concourse/concourse/worker/baggageclaim"
+	"github.com/concourse/concourse/v8/atc"
+	"github.com/concourse/concourse/v8/atc/db"
+	"github.com/concourse/concourse/v8/atc/db/lock"
+	"github.com/concourse/concourse/v8/atc/metric"
+	"github.com/concourse/concourse/v8/atc/runtime"
+	"github.com/concourse/concourse/v8/atc/worker/gardenruntime/gclient"
+	"github.com/concourse/concourse/v8/tracing"
+	"github.com/concourse/concourse/v8/worker/baggageclaim"
 	"github.com/moby/sys/user"
 	"golang.org/x/sync/errgroup"
 )
@@ -238,6 +238,9 @@ func (worker *Worker) createGardenContainer(
 
 	gardenContainer, err := worker.gardenClient.Create(gdnSpec)
 	if err != nil {
+		if existing, lookupErr := worker.gardenClient.Lookup(creatingContainer.Handle()); lookupErr == nil {
+			return existing, nil
+		}
 		logger.Error("failed-to-create-container-in-garden", err)
 		markContainerAsFailed(logger, creatingContainer)
 		return nil, err

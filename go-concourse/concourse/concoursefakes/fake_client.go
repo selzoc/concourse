@@ -7,15 +7,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/concourse/concourse/atc"
-	"github.com/concourse/concourse/go-concourse/concourse"
+	"github.com/concourse/concourse/v8/atc"
+	"github.com/concourse/concourse/v8/go-concourse/concourse"
 )
 
 type FakeClient struct {
-	AbortBuildStub        func(string) error
+	AbortBuildStub        func(string, bool) error
 	abortBuildMutex       sync.RWMutex
 	abortBuildArgsForCall []struct {
 		arg1 string
+		arg2 bool
 	}
 	abortBuildReturns struct {
 		result1 error
@@ -135,6 +136,18 @@ type FakeClient struct {
 		result2 http.Header
 		result3 error
 	}
+	GetHealthStub        func() (atc.Health, error)
+	getHealthMutex       sync.RWMutex
+	getHealthArgsForCall []struct {
+	}
+	getHealthReturns struct {
+		result1 atc.Health
+		result2 error
+	}
+	getHealthReturnsOnCall map[int]struct {
+		result1 atc.Health
+		result2 error
+	}
 	GetInfoStub        func() (atc.Info, error)
 	getInfoMutex       sync.RWMutex
 	getInfoArgsForCall []struct {
@@ -169,10 +182,11 @@ type FakeClient struct {
 	hTTPClientReturnsOnCall map[int]struct {
 		result1 *http.Client
 	}
-	LandWorkerStub        func(string) error
+	LandWorkerStub        func(string, string) error
 	landWorkerMutex       sync.RWMutex
 	landWorkerArgsForCall []struct {
 		arg1 string
+		arg2 string
 	}
 	landWorkerReturns struct {
 		result1 error
@@ -381,18 +395,19 @@ type FakeClient struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeClient) AbortBuild(arg1 string) error {
+func (fake *FakeClient) AbortBuild(arg1 string, arg2 bool) error {
 	fake.abortBuildMutex.Lock()
 	ret, specificReturn := fake.abortBuildReturnsOnCall[len(fake.abortBuildArgsForCall)]
 	fake.abortBuildArgsForCall = append(fake.abortBuildArgsForCall, struct {
 		arg1 string
-	}{arg1})
+		arg2 bool
+	}{arg1, arg2})
 	stub := fake.AbortBuildStub
 	fakeReturns := fake.abortBuildReturns
-	fake.recordInvocation("AbortBuild", []interface{}{arg1})
+	fake.recordInvocation("AbortBuild", []interface{}{arg1, arg2})
 	fake.abortBuildMutex.Unlock()
 	if stub != nil {
-		return stub(arg1)
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1
@@ -406,17 +421,17 @@ func (fake *FakeClient) AbortBuildCallCount() int {
 	return len(fake.abortBuildArgsForCall)
 }
 
-func (fake *FakeClient) AbortBuildCalls(stub func(string) error) {
+func (fake *FakeClient) AbortBuildCalls(stub func(string, bool) error) {
 	fake.abortBuildMutex.Lock()
 	defer fake.abortBuildMutex.Unlock()
 	fake.AbortBuildStub = stub
 }
 
-func (fake *FakeClient) AbortBuildArgsForCall(i int) string {
+func (fake *FakeClient) AbortBuildArgsForCall(i int) (string, bool) {
 	fake.abortBuildMutex.RLock()
 	defer fake.abortBuildMutex.RUnlock()
 	argsForCall := fake.abortBuildArgsForCall[i]
-	return argsForCall.arg1
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeClient) AbortBuildReturns(result1 error) {
@@ -959,6 +974,62 @@ func (fake *FakeClient) GetCLIReaderReturnsOnCall(i int, result1 io.ReadCloser, 
 	}{result1, result2, result3}
 }
 
+func (fake *FakeClient) GetHealth() (atc.Health, error) {
+	fake.getHealthMutex.Lock()
+	ret, specificReturn := fake.getHealthReturnsOnCall[len(fake.getHealthArgsForCall)]
+	fake.getHealthArgsForCall = append(fake.getHealthArgsForCall, struct {
+	}{})
+	stub := fake.GetHealthStub
+	fakeReturns := fake.getHealthReturns
+	fake.recordInvocation("GetHealth", []interface{}{})
+	fake.getHealthMutex.Unlock()
+	if stub != nil {
+		return stub()
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeClient) GetHealthCallCount() int {
+	fake.getHealthMutex.RLock()
+	defer fake.getHealthMutex.RUnlock()
+	return len(fake.getHealthArgsForCall)
+}
+
+func (fake *FakeClient) GetHealthCalls(stub func() (atc.Health, error)) {
+	fake.getHealthMutex.Lock()
+	defer fake.getHealthMutex.Unlock()
+	fake.GetHealthStub = stub
+}
+
+func (fake *FakeClient) GetHealthReturns(result1 atc.Health, result2 error) {
+	fake.getHealthMutex.Lock()
+	defer fake.getHealthMutex.Unlock()
+	fake.GetHealthStub = nil
+	fake.getHealthReturns = struct {
+		result1 atc.Health
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeClient) GetHealthReturnsOnCall(i int, result1 atc.Health, result2 error) {
+	fake.getHealthMutex.Lock()
+	defer fake.getHealthMutex.Unlock()
+	fake.GetHealthStub = nil
+	if fake.getHealthReturnsOnCall == nil {
+		fake.getHealthReturnsOnCall = make(map[int]struct {
+			result1 atc.Health
+			result2 error
+		})
+	}
+	fake.getHealthReturnsOnCall[i] = struct {
+		result1 atc.Health
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeClient) GetInfo() (atc.Info, error) {
 	fake.getInfoMutex.Lock()
 	ret, specificReturn := fake.getInfoReturnsOnCall[len(fake.getInfoArgsForCall)]
@@ -1124,18 +1195,19 @@ func (fake *FakeClient) HTTPClientReturnsOnCall(i int, result1 *http.Client) {
 	}{result1}
 }
 
-func (fake *FakeClient) LandWorker(arg1 string) error {
+func (fake *FakeClient) LandWorker(arg1 string, arg2 string) error {
 	fake.landWorkerMutex.Lock()
 	ret, specificReturn := fake.landWorkerReturnsOnCall[len(fake.landWorkerArgsForCall)]
 	fake.landWorkerArgsForCall = append(fake.landWorkerArgsForCall, struct {
 		arg1 string
-	}{arg1})
+		arg2 string
+	}{arg1, arg2})
 	stub := fake.LandWorkerStub
 	fakeReturns := fake.landWorkerReturns
-	fake.recordInvocation("LandWorker", []interface{}{arg1})
+	fake.recordInvocation("LandWorker", []interface{}{arg1, arg2})
 	fake.landWorkerMutex.Unlock()
 	if stub != nil {
-		return stub(arg1)
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1
@@ -1149,17 +1221,17 @@ func (fake *FakeClient) LandWorkerCallCount() int {
 	return len(fake.landWorkerArgsForCall)
 }
 
-func (fake *FakeClient) LandWorkerCalls(stub func(string) error) {
+func (fake *FakeClient) LandWorkerCalls(stub func(string, string) error) {
 	fake.landWorkerMutex.Lock()
 	defer fake.landWorkerMutex.Unlock()
 	fake.LandWorkerStub = stub
 }
 
-func (fake *FakeClient) LandWorkerArgsForCall(i int) string {
+func (fake *FakeClient) LandWorkerArgsForCall(i int) (string, string) {
 	fake.landWorkerMutex.RLock()
 	defer fake.landWorkerMutex.RUnlock()
 	argsForCall := fake.landWorkerArgsForCall[i]
-	return argsForCall.arg1
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeClient) LandWorkerReturns(result1 error) {

@@ -9,7 +9,7 @@ import (
 	"code.cloudfoundry.org/lager/v3"
 
 	sq "github.com/Masterminds/squirrel"
-	"github.com/concourse/concourse/atc/db/lock"
+	"github.com/concourse/concourse/v8/atc/db/lock"
 )
 
 //counterfeiter:generate . BuildForAPI
@@ -62,6 +62,7 @@ type BuildForAPI interface {
 	Preparation() (BuildPreparation, bool, error)
 
 	MarkAsAborted() error
+	Finish(BuildStatus) error
 	SetComment(string) error
 }
 

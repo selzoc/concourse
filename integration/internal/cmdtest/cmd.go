@@ -67,6 +67,7 @@ func (cmd Cmd) ExpectExit(code int) Cmd {
 	return cmd
 }
 
+// Starts the command but does not wait for it to finish
 func (cmd Cmd) Start(t *testing.T, args ...string) *exec.Cmd {
 	execCmd, err := cmd.TryStart(args...)
 	if err != nil {
@@ -75,11 +76,11 @@ func (cmd Cmd) Start(t *testing.T, args ...string) *exec.Cmd {
 	return execCmd
 }
 
+// Runs a command to completion and fails the test if the exit code is not zero
 func (cmd Cmd) Run(t *testing.T, args ...string) {
 	err := cmd.Try(args...)
 	if err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 			if exitErr.ExitCode() != cmd.ExpectExitCode {
 				t.Fatalf("ExitCode %d != %d", exitErr.ExitCode(), cmd.ExpectExitCode)
 			}
@@ -91,6 +92,7 @@ func (cmd Cmd) Run(t *testing.T, args ...string) {
 	}
 }
 
+// Runs the command to completion and returns its stdout
 func (cmd Cmd) Output(t *testing.T, args ...string) string {
 	buf := new(bytes.Buffer)
 	cmd.Stdout = buf

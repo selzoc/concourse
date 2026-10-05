@@ -11,17 +11,17 @@ import (
 
 	"code.cloudfoundry.org/garden"
 	"code.cloudfoundry.org/lager/v3/lagertest"
-	"github.com/concourse/concourse/atc"
-	"github.com/concourse/concourse/atc/db"
-	"github.com/concourse/concourse/atc/db/dbtest"
-	"github.com/concourse/concourse/atc/db/lock"
-	"github.com/concourse/concourse/atc/exec/execfakes"
-	"github.com/concourse/concourse/atc/runtime"
-	"github.com/concourse/concourse/atc/runtime/runtimetest"
-	"github.com/concourse/concourse/atc/worker/gardenruntime"
-	grt "github.com/concourse/concourse/atc/worker/gardenruntime/gardenruntimetest"
-	"github.com/concourse/concourse/atc/worker/workertest"
-	"github.com/concourse/concourse/worker/baggageclaim"
+	"github.com/concourse/concourse/v8/atc"
+	"github.com/concourse/concourse/v8/atc/db"
+	"github.com/concourse/concourse/v8/atc/db/dbtest"
+	"github.com/concourse/concourse/v8/atc/db/lock"
+	"github.com/concourse/concourse/v8/atc/exec/execfakes"
+	"github.com/concourse/concourse/v8/atc/runtime"
+	"github.com/concourse/concourse/v8/atc/runtime/runtimetest"
+	"github.com/concourse/concourse/v8/atc/worker/gardenruntime"
+	grt "github.com/concourse/concourse/v8/atc/worker/gardenruntime/gardenruntimetest"
+	"github.com/concourse/concourse/v8/atc/worker/workertest"
+	"github.com/concourse/concourse/v8/worker/baggageclaim"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/types"
@@ -1763,6 +1763,56 @@ var _ = Describe("Garden Worker", func() {
 			_, isDBContainerFound := scenario.DB.FindContainer(worker.Name(), containerOwner)
 			Expect(isDBContainerFound).To(BeFalse())
 		})
+	})
+
+	Test("concurrent container creation for the same handle succeeds in HA mode", func() {
+		gardenDbl := &grt.Garden{}
+
+		scenario := Setup(
+			workertest.WithWorkers(
+				grt.NewWorker("worker").
+					WithGarden(gardenDbl).
+					WithDBContainersInState(grt.Creating, "race-handle"),
+			),
+		)
+		worker := scenario.Worker("worker")
+
+		arrived := make(chan struct{}, 2)
+		proceed := make(chan struct{})
+		gardenDbl.BeforeCreate = func(_ garden.ContainerSpec) {
+			arrived <- struct{}{}
+			<-proceed
+		}
+
+		errs := make(chan error, 2)
+		for range 2 {
+			go func() {
+				_, _, err := worker.FindOrCreateContainer(
+					ctx,
+					db.NewFixedHandleContainerOwner("race-handle"),
+					db.ContainerMetadata{},
+					runtime.ContainerSpec{
+						ImageSpec: runtime.ImageSpec{ImageURL: "raw:///img/rootfs"},
+					},
+					delegate,
+				)
+				errs <- err
+			}()
+		}
+
+		Eventually(arrived, "10s").Should(HaveLen(2))
+		close(proceed)
+
+		var allErrs []error
+		for range 2 {
+			allErrs = append(allErrs, <-errs)
+		}
+
+		for _, err := range allErrs {
+			if err != nil {
+				Expect(err).ToNot(MatchError(ContainSubstring("already exists")))
+			}
+		}
 	})
 
 	Test("run/attach process context cancellation", func() {

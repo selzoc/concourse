@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/lager/v3/lagertest"
-	"github.com/concourse/concourse"
-	"github.com/concourse/concourse/atc"
-	"github.com/concourse/concourse/atc/db"
-	"github.com/concourse/concourse/atc/db/lock"
+	"github.com/concourse/concourse/v8"
+	"github.com/concourse/concourse/v8/atc"
+	"github.com/concourse/concourse/v8/atc/db"
+	"github.com/concourse/concourse/v8/atc/db/lock"
 	"github.com/google/uuid"
 )
 
@@ -504,7 +504,7 @@ func (builder Builder) WithResourceTypeVersions(resourceTypeName string, version
 			return fmt.Errorf("save versions: %w", err)
 		}
 
-		resourceType.SetResourceConfigScope(scope)
+		err = resourceType.SetResourceConfigScope(scope)
 		if err != nil {
 			return fmt.Errorf("set resource scope: %w", err)
 		}
@@ -595,7 +595,7 @@ func (builder Builder) WithPrototypeVersions(prototypeName string, versions ...a
 			return fmt.Errorf("save versions: %w", err)
 		}
 
-		prototype.SetResourceConfigScope(scope)
+		err = prototype.SetResourceConfigScope(scope)
 		if err != nil {
 			return fmt.Errorf("set resource scope: %w", err)
 		}
@@ -699,10 +699,8 @@ func (builder Builder) WithNextInputMapping(jobName string, inputs JobInputs) Se
 
 			mapping[input.Name] = db.InputResult{
 				Input: &db.AlgorithmInput{
-					AlgorithmVersion: db.AlgorithmVersion{
-						Version:    db.ResourceVersion(sha256Version(i.Version)),
-						ResourceID: input.ResourceID,
-					},
+					Version:         db.ResourceVersion(sha256Version(i.Version)),
+					ResourceID:      input.ResourceID,
 					FirstOccurrence: i.FirstOccurrence,
 				},
 				PassedBuildIDs: buildIDs,

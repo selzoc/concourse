@@ -9,7 +9,7 @@ import (
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
-	"github.com/concourse/concourse/atc"
+	"github.com/concourse/concourse/v8/atc"
 )
 
 //counterfeiter:generate . WorkerFactory
@@ -56,6 +56,7 @@ var workersQuery = psql.Select(`
 		w.start_time,
 		w.expires,
 		w.ephemeral,
+		w.max_active_tasks,
 		w.p2p_streaming_group
 	`).
 	From("workers w").
@@ -184,6 +185,7 @@ func scanWorker(worker *worker, row scannable) error {
 		&startTime,
 		&expiresAt,
 		&ephemeral,
+		&worker.maxActiveTasks,
 		&worker.p2pStreamingGroup,
 	)
 	if err != nil {
@@ -280,6 +282,10 @@ func (f *workerFactory) HeartbeatWorker(atcWorker atc.Worker, ttl time.Duration)
 		Set("active_containers", atcWorker.ActiveContainers).
 		Set("active_volumes", atcWorker.ActiveVolumes).
 		Set("state", sq.Expr("("+cSQL+")")).
+		// A worker that is heartbeating is responsive, so it can no longer be
+		// considered stalled. Clearing stalled_since ensures a worker that
+		// recovers from a transient disconnect resets its stall grace period.
+		Set("stalled_since", nil).
 		Where(sq.Eq{"name": atcWorker.Name}).
 		RunWith(tx).
 		Exec()
@@ -408,6 +414,7 @@ func saveWorker(tx Tx, atcWorker atc.Worker, teamID *int, ttl time.Duration, con
 		string(workerState),
 		teamID,
 		atcWorker.Ephemeral,
+		atcWorker.MaxActiveTasks,
 		atcWorker.P2PStreamingGroup,
 	}
 
@@ -440,6 +447,7 @@ func saveWorker(tx Tx, atcWorker atc.Worker, teamID *int, ttl time.Duration, con
 			"state",
 			"team_id",
 			"ephemeral",
+			"max_active_tasks",
 			"p2p_streaming_group",
 		).
 		Values(append([]any{
@@ -466,6 +474,7 @@ func saveWorker(tx Tx, atcWorker atc.Worker, teamID *int, ttl time.Duration, con
 				state = ?,
 				team_id = ?,
 				ephemeral = ?,
+				max_active_tasks = ?,
 				p2p_streaming_group = ?
 			WHERE `+matchTeamUpsert,
 			conflictValues...,
@@ -509,6 +518,7 @@ func saveWorker(tx Tx, atcWorker atc.Worker, teamID *int, ttl time.Duration, con
 		teamID:            workerTeamID,
 		startTime:         time.Unix(atcWorker.StartTime, 0),
 		ephemeral:         atcWorker.Ephemeral,
+		maxActiveTasks:    atcWorker.MaxActiveTasks,
 		p2pStreamingGroup: atcWorker.P2PStreamingGroup,
 		conn:              conn,
 	}

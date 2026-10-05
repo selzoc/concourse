@@ -11,6 +11,7 @@ type JobConfig struct {
 	Interruptible        bool     `json:"interruptible,omitempty"`
 	SerialGroups         []string `json:"serial_groups,omitempty"`
 	RawMaxInFlight       int      `json:"max_in_flight,omitempty"`
+	Tags                 Tags     `json:"tags,omitempty"`
 
 	// Deprecated: users should use BuildLogRetention
 	BuildLogsToRetain int `json:"build_logs_to_retain,omitempty"`
@@ -97,15 +98,13 @@ func (config JobConfig) Inputs() []JobInputParams {
 	_ = config.StepConfig().Visit(StepRecursor{
 		OnGet: func(step *GetStep) error {
 			inputs = append(inputs, JobInputParams{
-				JobInput: JobInput{
-					Name:     step.Name,
-					Resource: step.ResourceName(),
-					Passed:   step.Passed,
-					Version:  step.Version,
-					Trigger:  step.Trigger,
-				},
-				Params: step.Params,
-				Tags:   step.Tags,
+				Name:     step.Name,
+				Resource: step.ResourceName(),
+				Passed:   step.Passed,
+				Version:  step.Version,
+				Trigger:  step.Trigger,
+				Params:   step.Params,
+				Tags:     step.Tags,
 			})
 
 			return nil

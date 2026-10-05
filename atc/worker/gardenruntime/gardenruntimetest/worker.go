@@ -4,14 +4,14 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/concourse/concourse/atc"
-	"github.com/concourse/concourse/atc/compression"
-	"github.com/concourse/concourse/atc/db"
-	"github.com/concourse/concourse/atc/db/dbtest"
-	"github.com/concourse/concourse/atc/runtime"
-	"github.com/concourse/concourse/atc/worker"
-	"github.com/concourse/concourse/atc/worker/gardenruntime"
-	"github.com/concourse/concourse/atc/worker/workertest"
+	"github.com/concourse/concourse/v8/atc"
+	"github.com/concourse/concourse/v8/atc/compression"
+	"github.com/concourse/concourse/v8/atc/db"
+	"github.com/concourse/concourse/v8/atc/db/dbtest"
+	"github.com/concourse/concourse/v8/atc/runtime"
+	"github.com/concourse/concourse/v8/atc/worker"
+	"github.com/concourse/concourse/v8/atc/worker/gardenruntime"
+	"github.com/concourse/concourse/v8/atc/worker/workertest"
 
 	. "github.com/onsi/gomega"
 )
@@ -30,6 +30,7 @@ type WorkerSetupFunc func(*atc.Worker)
 type Worker struct {
 	WorkerName       string
 	Containers       []*Container
+	GardenClient     *Garden
 	Volumes          []*Volume
 	SetupFuncs       []SetupFunc
 	WorkerSetupFuncs []WorkerSetupFunc
@@ -60,9 +61,13 @@ func (w *Worker) Setup(s *workertest.Scenario) {
 }
 
 func (w Worker) Build(db worker.DB, dbWorker db.Worker) runtime.Worker {
+	gdn := w.GardenClient
+	if gdn == nil {
+		gdn = &Garden{ContainerList: w.Containers}
+	}
 	return gardenruntime.NewWorker(
 		dbWorker,
-		&Garden{ContainerList: w.Containers},
+		gdn,
 		&Baggageclaim{Volumes: w.Volumes, Mutex: sync.Mutex{}},
 		db.ToGardenRuntimeDB(),
 		worker.NewStreamer(db.ResourceCacheFactory, compression.NewGzipCompression(), 0, worker.P2PConfig{
@@ -76,6 +81,12 @@ func (w Worker) WithGardenContainers(containers ...*Container) *Worker {
 	w2.Containers = make([]*Container, len(w.Containers)+len(containers))
 	copy(w2.Containers, w.Containers)
 	copy(w2.Containers[len(w.Containers):], containers)
+	return &w2
+}
+
+func (w Worker) WithGarden(g *Garden) *Worker {
+	w2 := w
+	w2.GardenClient = g
 	return &w2
 }
 
@@ -186,6 +197,12 @@ func (w Worker) WithActiveTasks(activeTasks int) *Worker {
 			_, err := worker.IncreaseActiveTasks(activeTasks)
 			Expect(err).ToNot(HaveOccurred())
 		}
+	})
+}
+
+func (w Worker) WithMaxActiveTasks(activeTasks int) *Worker {
+	return w.WithWorkerSetup(func(w *atc.Worker) {
+		w.MaxActiveTasks = activeTasks
 	})
 }
 

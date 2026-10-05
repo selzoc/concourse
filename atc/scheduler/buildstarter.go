@@ -7,10 +7,10 @@ import (
 	"sync"
 
 	"code.cloudfoundry.org/lager/v3"
-	"github.com/concourse/concourse/atc"
-	"github.com/concourse/concourse/atc/db"
-	"github.com/concourse/concourse/atc/metric"
-	"github.com/concourse/concourse/atc/util"
+	"github.com/concourse/concourse/v8/atc"
+	"github.com/concourse/concourse/v8/atc/db"
+	"github.com/concourse/concourse/v8/atc/metric"
+	"github.com/concourse/concourse/v8/atc/util"
 )
 
 //counterfeiter:generate . BuildStarter
@@ -24,7 +24,7 @@ type BuildStarter interface {
 
 //counterfeiter:generate . BuildPlanner
 type BuildPlanner interface {
-	Create(atc.StepConfig, db.SchedulerResources, atc.ResourceTypes, atc.Prototypes, []db.BuildInput, bool) (atc.Plan, error)
+	Create(atc.StepConfig, db.SchedulerResources, atc.ResourceTypes, atc.Prototypes, []db.BuildInput, bool, atc.Tags) (atc.Plan, error)
 }
 
 type Build interface {
@@ -77,12 +77,6 @@ func (s *buildStarter) TryStartPendingBuildsForJob(
 			continue
 		}
 
-		if !results.scheduled {
-			// If max in flight is reached, stop scheduling and retry later
-			needsRetry = true
-			break
-		}
-
 		if !results.readyToDetermineInputs {
 			// Issue checks, stop scheduling, retry later
 			needsRetry = true
@@ -90,6 +84,12 @@ func (s *buildStarter) TryStartPendingBuildsForJob(
 			if err != nil {
 				return false, err
 			}
+			break
+		}
+
+		if !results.scheduled {
+			// If max in flight is reached, stop scheduling and retry later
+			needsRetry = true
 			break
 		}
 
@@ -203,12 +203,13 @@ func (s *buildStarter) createChecks(logger lager.Logger, job db.Job, build Build
 					nil,
 					build.IsManuallyTriggered(),
 					build.IsManuallyTriggered(),
-					false, // Create in-memory checks. BuildTracker will avoid duplicate checks
+					false, // create in-memory builds
 				)
 				if err != nil {
 					logger.Error("buildstarter-checking-resource", err, lager.Data{
-						"job_id":      job.ID(),
-						"resource_id": resource.ID(),
+						"pipeline": job.PipelineName(),
+						"job":      job.Name(),
+						"resource": resource.Name(),
 					})
 				}
 			}(resource)
@@ -297,7 +298,7 @@ func (s *buildStarter) tryStartNextPendingBuild(
 		return startResults{}, fmt.Errorf("config: %w", err)
 	}
 
-	plan, err := s.planner.Create(config.StepConfig(), job.Resources, job.ResourceTypes, job.Prototypes, buildInputs, nextPendingBuild.IsManuallyTriggered())
+	plan, err := s.planner.Create(config.StepConfig(), job.Resources, job.ResourceTypes, job.Prototypes, buildInputs, nextPendingBuild.IsManuallyTriggered(), config.Tags)
 	if err != nil {
 		logger.Error("failed-to-create-build-plan", err)
 

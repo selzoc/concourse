@@ -13,9 +13,9 @@ import (
 
 	"code.cloudfoundry.org/lager/v3"
 	"code.cloudfoundry.org/lager/v3/lagerctx"
-	"github.com/concourse/concourse/tracing"
-	"github.com/concourse/concourse/worker/baggageclaim"
-	"github.com/concourse/concourse/worker/baggageclaim/uidgid"
+	"github.com/concourse/concourse/v8/tracing"
+	"github.com/concourse/concourse/v8/worker/baggageclaim"
+	"github.com/concourse/concourse/v8/worker/baggageclaim/uidgid"
 )
 
 var ErrVolumeDoesNotExist = errors.New("volume does not exist")
@@ -174,7 +174,11 @@ func (repo *repository) CleanupOrphanedVolumes(ctx context.Context) error {
 	return repo.filesystem.CleanupOrphanedEntries()
 }
 
-func (repo *repository) CreateVolume(ctx context.Context, handle string, strategy Strategy, opts VolumeOpts) (Volume, error) {
+func (repo *repository) CreateVolume(ctx context.Context,
+	handle string,
+	strategy Strategy,
+	opts VolumeOpts,
+) (Volume, error) {
 	ctx, span := tracing.StartSpan(ctx, "volumeRepository.CreateVolume", tracing.Attrs{
 		"volume":   handle,
 		"strategy": strategy.String(),
@@ -302,7 +306,11 @@ func (repo *repository) GetVolume(ctx context.Context, handle string) (Volume, b
 	return volume, true, nil
 }
 
-func (repo *repository) SetProperty(ctx context.Context, handle string, propertyName string, propertyValue string) error {
+func (repo *repository) SetProperty(ctx context.Context,
+	handle string,
+	propertyName string,
+	propertyValue string,
+) error {
 	repo.locker.Lock(handle)
 	defer repo.locker.Unlock(handle)
 
@@ -403,7 +411,13 @@ func (repo *repository) SetPrivileged(ctx context.Context, handle string, privil
 	return nil
 }
 
-func (repo *repository) StreamIn(ctx context.Context, handle string, path string, encoding baggageclaim.Encoding, limitInMB float64, stream io.Reader) (bool, error) {
+func (repo *repository) StreamIn(ctx context.Context,
+	handle string,
+	path string,
+	encoding baggageclaim.Encoding,
+	limitInMB float64,
+	stream io.Reader,
+) (bool, error) {
 	ctx, span := tracing.StartSpan(ctx, "volumeRepository.StreamIn", tracing.Attrs{
 		"volume":   handle,
 		"sub-path": path,
@@ -428,8 +442,12 @@ func (repo *repository) StreamIn(ctx context.Context, handle string, path string
 		return false, ErrVolumeDoesNotExist
 	}
 
-	path = strings.ReplaceAll(path, "..", "")
-	destinationPath := filepath.Join(volume.DataPath(), path)
+	destinationPath := filepath.Join(volume.DataPath(), filepath.Clean("/"+path))
+	if !strings.HasPrefix(destinationPath, volume.DataPath()) {
+		err = fmt.Errorf("path '%s' is outside the volume data path '%s'", destinationPath, volume.DataPath())
+		logger.Error("path-outside-volume", err)
+		return false, err
+	}
 
 	logger = logger.WithData(lager.Data{
 		"full-path": destinationPath,
@@ -490,7 +508,12 @@ func (repo *repository) StreamIn(ctx context.Context, handle string, path string
 	return badStream, nil
 }
 
-func (repo *repository) StreamOut(ctx context.Context, handle string, path string, encoding baggageclaim.Encoding, dest io.Writer) error {
+func (repo *repository) StreamOut(ctx context.Context,
+	handle string,
+	path string,
+	encoding baggageclaim.Encoding,
+	dest io.Writer,
+) error {
 	ctx, span := tracing.StartSpan(ctx, "volumeRepository.StreamOut", tracing.Attrs{
 		"volume":   handle,
 		"sub-path": path,
@@ -513,7 +536,12 @@ func (repo *repository) StreamOut(ctx context.Context, handle string, path strin
 		return ErrVolumeDoesNotExist
 	}
 
-	srcPath := filepath.Join(volume.DataPath(), path)
+	srcPath := filepath.Join(volume.DataPath(), filepath.Clean("/"+path))
+	if !strings.HasPrefix(srcPath, volume.DataPath()) {
+		err = fmt.Errorf("path '%s' is outside the volume data path '%s'", srcPath, volume.DataPath())
+		logger.Error("path-outside-volume", err)
+		return err
+	}
 
 	logger = logger.WithData(lager.Data{
 		"full-path": srcPath,
@@ -539,7 +567,12 @@ func (repo *repository) StreamOut(ctx context.Context, handle string, path strin
 	return ErrUnsupportedStreamEncoding
 }
 
-func (repo *repository) StreamP2pOut(ctx context.Context, handle string, path string, encoding baggageclaim.Encoding, streamInURL string) error {
+func (repo *repository) StreamP2pOut(ctx context.Context,
+	handle string,
+	path string,
+	encoding baggageclaim.Encoding,
+	streamInURL string,
+) error {
 	ctx, span := tracing.StartSpan(ctx, "volumeRepository.StreamP2pOut", tracing.Attrs{
 		"volume":   handle,
 		"sub-path": path,
@@ -567,7 +600,12 @@ func (repo *repository) StreamP2pOut(ctx context.Context, handle string, path st
 		return ErrVolumeDoesNotExist
 	}
 
-	srcPath := filepath.Join(volume.DataPath(), path)
+	srcPath := filepath.Join(volume.DataPath(), filepath.Clean("/"+path))
+	if !strings.HasPrefix(srcPath, volume.DataPath()) {
+		err = fmt.Errorf("path '%s' is outside the volume data path '%s'", srcPath, volume.DataPath())
+		logger.Error("path-outside-volume", err)
+		return err
+	}
 
 	logger = logger.WithData(lager.Data{
 		"full-path": srcPath,
@@ -681,12 +719,10 @@ func (repo *repository) volumeFrom(liveVolume FilesystemLiveVolume) (Volume, err
 	}
 
 	return Volume{
-		Handle: liveVolume.Handle(),
-		Path:   liveVolume.DataPath(),
-		VolumeOpts: VolumeOpts{
-			Properties: properties,
-			Privileged: isPrivileged,
-		},
+		Handle:     liveVolume.Handle(),
+		Path:       liveVolume.DataPath(),
+		Properties: properties,
+		Privileged: isPrivileged,
 	}, nil
 }
 
